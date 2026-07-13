@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OddsJæger — Value & Arbitrage Finder</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0F1923;
+    --surface:  #16232F;
+    --card:     #1C2E3D;
+    --border:   #243447;
+    --green:    #00FF87;
+    --green-dim:#00C968;
+    --red:      #FF4444;
+    --yellow:   #FFD166;
+    --text:     #E8F0F7;
+    --muted:    #6B8299;
+    --mono:     'Roboto Mono', monospace;
+    --sans:     'Inter', sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--text); }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .api-badge {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--muted);
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+  .api-badge.connected { color: var(--green); border-color: var(--green); }
+
+  /* MAIN LAYOUT */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 16px;
+  }
+
+  /* API SETUP */
+  .setup-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    margin-bottom: 24px;
+  }
+  .setup-card h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+  .setup-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  input[type="text"], input[type="number"], select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type="text"]:focus, select:focus { border-color: var(--green); }
+  input[type="text"].api-input { flex: 1; min-width: 260px; }
+  select { min-width: 180px; }
+
+  .btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 0.3px;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary {
+    background: var(--green);
+    color: #0F1923;
+  }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-outline:hover { border-color: var(--green); color: var(--green); }
+
+  /* FILTERS */
+  .filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+    align-items: center;
+  }
+  .filter-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+    margin-right: 4px;
+  }
+  .mode-toggle {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .mode-btn {
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    transition: all 0.15s;
+  }
+  .mode-btn.active {
+    background: var(--green);
+    color: #0F1923;
+  }
+
+  /* STATS BAR */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 4px;
+  }
+  .stat-value.red { color: var(--red); }
+  .stat-value.yellow { color: var(--yellow); }
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  /* RESULTS */
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .count {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+
+  .bet-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+  .bet-card:hover { border-color: #2d4a63; }
+  .bet-card.arb { border-left: 3px solid var(--green); }
+  .bet-card.value { border-left: 3px solid var(--yellow); }
+
+  .bet-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .match-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .match-meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 3px;
+    font-family: var(--mono);
+  }
+  .bet-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    letter-spacing: 0.5px;
+  }
+  .bet-badge.arb { background: rgba(0,255,135,0.15); color: var(--green); border: 1px solid rgba(0,255,135,0.3); }
+  .bet-badge.value { background: rgba(255,209,102,0.12); color: var(--yellow); border: 1px solid rgba(255,209,102,0.3); }
+
+  /* ODDS TABLE */
+  .odds-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .odds-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .odds-item.best { border-color: var(--green); background: rgba(0,255,135,0.05); }
+  .odds-outcome {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .odds-value {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .odds-item.best .odds-value { color: var(--green); }
+  .odds-bookmaker {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 3px;
+    font-family: var(--mono);
+  }
+
+  /* VALUE METER */
+  .value-meter {
+    margin-bottom: 10px;
+  }
+  .meter-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 5px;
+    font-family: var(--mono);
+  }
+  .meter-label span:last-child { color: var(--green); font-weight: 600; }
+  .meter-track {
+    height: 4px;
+    background: var(--card);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .meter-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--green-dim), var(--green));
+    border-radius: 2px;
+    transition: width 0.6s ease;
+  }
+  .meter-fill.yellow-fill { background: linear-gradient(90deg, #cc9900, var(--yellow)); }
+
+  /* ARB CALC */
+  .arb-calc {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  .arb-calc .profit { color: var(--green); font-weight: 700; }
+
+  /* TRACKER */
+  .tracker-section { margin-top: 32px; }
+  .tracker-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .tracker-table th {
+    text-align: left;
+    padding: 10px 12px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+  }
+  .tracker-table td {
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .tracker-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .result-win { color: var(--green); font-weight: 600; }
+  .result-loss { color: var(--red); font-weight: 600; }
+  .result-pending { color: var(--yellow); }
+
+  /* EMPTY / LOADING */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 16px; opacity: 0.5; }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+
+  .loading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    padding: 40px 0;
+    justify-content: center;
+  }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-msg {
+    background: rgba(255,68,68,0.1);
+    border: 1px solid rgba(255,68,68,0.3);
+    color: #ff8080;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+
+  /* LOG BET FORM */
+  .log-form {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .log-form input, .log-form select {
+    font-size: 12px;
+    padding: 7px 10px;
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+  @media (max-width: 600px) {
+    .bet-top { flex-direction: column; }
+    .odds-grid { grid-template-columns: repeat(3, 1fr); }
+    header { padding: 12px 16px; }
+    .logo { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Odds<span>Jæger</span></div>
+  <div class="header-right">
+    <div class="api-badge" id="apiBadge">⬤ Ikke forbundet</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- SETUP -->
+  <div class="setup-card">
+    <h2>The Odds API — Opsætning</h2>
+    <div class="setup-row">
+      <input type="text" class="api-input" id="apiKey" placeholder="Indsæt din API-nøgle fra theoddsapi.com..." />
+      <select id="regionSelect">
+        <option value="eu">Europa (EU)</option>
+        <option value="uk">England (UK)</option>
+        <option value="us">USA</option>
+        <option value="au">Australien</option>
+      </select>
+      <button class="btn btn-primary" onclick="fetchOdds()">🔍 Hent odds nu</button>
+    </div>
+    <div style="margin-top:10px; font-size:12px; color:var(--muted);">
+      Gratis API-nøgle på <a href="https://theoddsapi.com" target="_blank" style="color:var(--green);">theoddsapi.com</a> — giver 500 requests/måned (nok til daglig brug)
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters">
+    <span class="filter-label">Vis:</span>
+    <div class="mode-toggle">
+      <button class="mode-btn active" onclick="setMode('all', this)">Alle</button>
+      <button class="mode-btn" onclick="setMode('arb', this)">Arbitrage</button>
+      <button class="mode-btn" onclick="setMode('value', this)">Value bets</button>
+    </div>
+    <span class="filter-label" style="margin-left:8px;">Min. value:</span>
+    <input type="number" id="minValue" value="3" min="0" max="30" style="width:70px;" />
+    <span style="font-size:12px;color:var(--muted);">%</span>
+    <span class="filter-label" style="margin-left:8px;">Bankroll:</span>
+    <input type="number" id="bankroll" value="10000" style="width:100px;" />
+    <span style="font-size:12px;color:var(--muted);">kr.</span>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-bar" id="statsBar" style="display:none;">
+    <div class="stat-item">
+      <div class="stat-value" id="statArb">0</div>
+      <div class="stat-label">Arbitrage fundet</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value yellow" id="statValue">0</div>
+      <div class="stat-label">Value bets</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="statMatches">0</div>
+      <div class="stat-label">Kampe analyseret</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="statProfit">+0%</div>
+      <div class="stat-label">Bedste arb-profit</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('finder', this)">🎯 Finder</div>
+    <div class="tab" onclick="showTab('tracker', this)">📊 Tracker</div>
+  </div>
+
+  <!-- FINDER TAB -->
+  <div id="tab-finder">
+    <div id="errorMsg" class="error-msg" style="display:none;"></div>
+    <div id="resultsArea">
+      <div class="empty-state">
+        <div class="icon">⚽</div>
+        <p>Indsæt din API-nøgle og tryk "Hent odds nu"<br>for at scanne dagens fodboldkampe.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRACKER TAB -->
+  <div id="tab-tracker" style="display:none;">
+    <div style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <div class="section-title">Dine bets <span class="count" id="trackerCount">0</span></div>
+      <button class="btn btn-outline" onclick="showLogForm()">+ Log manuelt bet</button>
+    </div>
+
+    <div id="logFormArea" style="display:none; margin-bottom:16px;">
+      <div class="setup-card">
+        <h2>Log bet manuelt</h2>
+        <div class="log-form">
+          <input type="text" id="logMatch" placeholder="Kamp (fx Bayern vs Dortmund)" style="min-width:200px;" />
+          <input type="text" id="logMarket" placeholder="Marked (fx 1X2 — Hjemme)" style="min-width:160px;" />
+          <input type="number" id="logOdds" placeholder="Odds" step="0.01" style="width:90px;" />
+          <input type="number" id="logStake" placeholder="Indsats (kr.)" style="width:120px;" />
+          <select id="logType">
+            <option value="value">Value bet</option>
+            <option value="arb">Arbitrage</option>
+          </select>
+          <button class="btn btn-primary" onclick="logBet()">Gem</button>
+          <button class="btn btn-outline" onclick="hideLogForm()">Annuller</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="trackerEmpty" class="empty-state">
+      <div class="icon">📋</div>
+      <p>Ingen bets logget endnu.<br>Bets du logger her gemmes i din browser.</p>
+    </div>
+
+    <div id="trackerTableWrap" style="display:none;">
+      <div class="stats-bar" style="margin-bottom:20px;">
+        <div class="stat-item"><div class="stat-value" id="tStatTotal">0</div><div class="stat-label">Bets i alt</div></div>
+        <div class="stat-item"><div class="stat-value" id="tStatWins">0</div><div class="stat-label">Vundet</div></div>
+        <div class="stat-item"><div class="stat-value red" id="tStatLoss">0</div><div class="stat-label">Tabt</div></div>
+        <div class="stat-item"><div class="stat-value" id="tStatROI">0%</div><div class="stat-label">ROI</div></div>
+        <div class="stat-item"><div class="stat-value" id="tStatPL">0 kr.</div><div class="stat-label">Profit/Tab</div></div>
+      </div>
+      <table class="tracker-table">
+        <thead>
+          <tr>
+            <th>Dato</th><th>Kamp</th><th>Marked</th><th>Odds</th><th>Indsats</th><th>Type</th><th>Resultat</th><th>P/L</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="trackerBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────
+let allBets = [];
+let currentMode = 'all';
+let trackerBets = JSON.parse(localStorage.getItem('oddsjager_bets') || '[]');
+
+// ─── TABS ─────────────────────────────────────────────
+function showTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-finder').style.display = name === 'finder' ? '' : 'none';
+  document.getElementById('tab-tracker').style.display = name === 'tracker' ? '' : 'none';
+  if (name === 'tracker') renderTracker();
+}
+
+// ─── MODE TOGGLE ──────────────────────────────────────
+function setMode(mode, el) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderResults(allBets);
+}
+
+// ─── FETCH ODDS ───────────────────────────────────────
+async function fetchOdds() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key) { showError('Indtast venligst en API-nøgle.'); return; }
+
+  const region = document.getElementById('regionSelect').value;
+  document.getElementById('resultsArea').innerHTML = '<div class="loading"><div class="spinner"></div>Henter odds fra The Odds API...</div>';
+  document.getElementById('errorMsg').style.display = 'none';
+  document.getElementById('statsBar').style.display = 'none';
+
+  try {
+    const sportsRes = await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${key}`);
+    if (!sportsRes.ok) { throw new Error('Ugyldig API-nøgle eller forbindelsesfejl.'); }
+    const sports = await sportsRes.json();
+
+    const footballSports = sports.filter(s =>
+      s.group === 'Soccer' && s.active
+    ).map(s => s.key);
+
+    document.getElementById('resultsArea').innerHTML = `<div class="loading"><div class="spinner"></div>Analyserer ${footballSports.length} fodboldligaer...</div>`;
+
+    let allMatches = [];
+    const batchSize = 6;
+    for (let i = 0; i < Math.min(footballSports.length, 18); i += batchSize) {
+      const batch = footballSports.slice(i, i + batchSize);
+      const promises = batch.map(sport =>
+        fetch(`https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${key}&regions=${region}&markets=h2h&oddsFormat=decimal`)
+          .then(r => r.ok ? r.json() : [])
+          .catch(() => [])
+      );
+      const results = await Promise.all(promises);
+      results.forEach(r => { if (Array.isArray(r)) allMatches = allMatches.concat(r); });
+    }
+
+    document.getElementById('apiBadge').textContent = '⬤ Forbundet';
+    document.getElementById('apiBadge').className = 'api-badge connected';
+
+    allBets = analyzeMatches(allMatches);
+    document.getElementById('statsBar').style.display = 'grid';
+    renderResults(allBets);
+
+  } catch (err) {
+    showError(err.message || 'Ukendt fejl. Tjek din API-nøgle og prøv igen.');
+    document.getElementById('resultsArea').innerHTML = '';
+  }
+}
+
+// ─── ANALYZE ──────────────────────────────────────────
+function analyzeMatches(matches) {
+  const minValue = parseFloat(document.getElementById('minValue').value) || 3;
+  const findings = [];
+
+  matches.forEach(match => {
+    if (!match.bookmakers || match.bookmakers.length < 3) return;
+
+    // Collect best odds per outcome
+    const outcomes = {};
+    match.bookmakers.forEach(bm => {
+      bm.markets?.forEach(mkt => {
+        if (mkt.key !== 'h2h') return;
+        mkt.outcomes?.forEach(o => {
+          if (!outcomes[o.name] || o.price > outcomes[o.name].price) {
+            outcomes[o.name] = { price: o.price, bookmaker: bm.title };
+          }
+        });
+      });
+    });
+
+    const names = Object.keys(outcomes);
+    if (names.length < 2) return;
+
+    // Collect all bookmaker odds for fair odds calc
+    const allPrices = {};
+    names.forEach(n => { allPrices[n] = []; });
+    match.bookmakers.forEach(bm => {
+      bm.markets?.forEach(mkt => {
+        if (mkt.key !== 'h2h') return;
+        mkt.outcomes?.forEach(o => {
+          if (allPrices[o.name]) allPrices[o.name].push(o.price);
+        });
+      });
+    });
+
+    // Fair odds = average of all bookmakers
+    const fairOdds = {};
+    names.forEach(n => {
+      const prices = allPrices[n];
+      fairOdds[n] = prices.length ? prices.reduce((a,b) => a+b, 0) / prices.length : 0;
+    });
+
+    // Arbitrage check
+    const impliedSum = names.reduce((sum, n) => sum + 1 / outcomes[n].price, 0);
+    const arbProfit = ((1 / impliedSum) - 1) * 100;
+
+    // Value check per outcome
+    const valueOdds = names.map(n => {
+      const best = outcomes[n].price;
+      const fair = fairOdds[n];
+      const value = fair > 0 ? ((best / (1/fair)) - 1) * 100 : 0;
+      // Simpler: value = best odds vs fair odds
+      const fairPrice = fair;
+      const valuePct = fairPrice > 0 ? ((best - fairPrice) / fairPrice) * 100 : 0;
+      return { name: n, best, bookmaker: outcomes[n].bookmaker, fair: fairPrice, value: valuePct };
+    }).filter(v => v.value >= minValue);
+
+    const isArb = arbProfit > 0.5;
+    const hasValue = valueOdds.length > 0;
+
+    if (!isArb && !hasValue) return;
+
+    findings.push({
+      id: match.id,
+      homeTeam: match.home_team,
+      awayTeam: match.away_team,
+      sport: match.sport_key,
+      commence: match.commence_time,
+      outcomes,
+      fairOdds,
+      allPrices,
+      arbProfit,
+      valueOdds,
+      isArb,
+      hasValue,
+      bookmakerCount: match.bookmakers.length
+    });
+  });
+
+  // Sort: arb first, then by value
+  findings.sort((a, b) => {
+    if (a.isArb && !b.isArb) return -1;
+    if (!a.isArb && b.isArb) return 1;
+    const aMax = Math.max(...a.valueOdds.map(v => v.value), 0);
+    const bMax = Math.max(...b.valueOdds.map(v => v.value), 0);
+    return bMax - aMax;
+  });
+
+  return findings;
+}
+
+// ─── RENDER ───────────────────────────────────────────
+function renderResults(bets) {
+  const filtered = bets.filter(b => {
+    if (currentMode === 'arb') return b.isArb;
+    if (currentMode === 'value') return b.hasValue;
+    return true;
+  });
+
+  const bankroll = parseFloat(document.getElementById('bankroll').value) || 10000;
+  const stake = bankroll * 0.02;
+
+  // Stats
+  const arbBets = bets.filter(b => b.isArb);
+  const valueBets = bets.filter(b => b.hasValue && !b.isArb);
+  const bestArb = arbBets.length ? Math.max(...arbBets.map(b => b.arbProfit)) : 0;
+
+  document.getElementById('statArb').textContent = arbBets.length;
+  document.getElementById('statValue').textContent = valueBets.length;
+  document.getElementById('statMatches').textContent = bets.length;
+  document.getElementById('statProfit').textContent = bestArb > 0 ? `+${bestArb.toFixed(2)}%` : '–';
+
+  if (!filtered.length) {
+    document.getElementById('resultsArea').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🔎</div>
+        <p>Ingen ${currentMode === 'arb' ? 'arbitrage' : currentMode === 'value' ? 'value bets' : 'bets'} fundet med de nuværende kriterier.<br>Prøv at sænke minimum value-kravet.</p>
+      </div>`;
+    return;
+  }
+
+  const html = filtered.map(b => {
+    const date = new Date(b.commence);
+    const dateStr = date.toLocaleDateString('da-DK', { weekday:'short', day:'numeric', month:'short' });
+    const timeStr = date.toLocaleTimeString('da-DK', { hour:'2-digit', minute:'2-digit' });
+    const league = b.sport.replace('soccer_', '').replace(/_/g, ' ').toUpperCase();
+
+    const outcomeNames = Object.keys(b.outcomes);
+    const oddsHtml = outcomeNames.map(name => {
+      const o = b.outcomes[name];
+      const isValueOutcome = b.valueOdds.some(v => v.name === name);
+      return `
+        <div class="odds-item ${isValueOutcome ? 'best' : ''}">
+          <div class="odds-outcome">${name}</div>
+          <div class="odds-value">${o.price.toFixed(2)}</div>
+          <div class="odds-bookmaker">${o.bookmaker}</div>
+        </div>`;
+    }).join('');
+
+    let extraHtml = '';
+    if (b.isArb) {
+      const impliedSum = outcomeNames.reduce((s,n) => s + 1/b.outcomes[n].price, 0);
+      const stakes = outcomeNames.map(n => ({
+        name: n,
+        stake: (stake / impliedSum) * (1 / b.outcomes[n].price),
+        bm: b.outcomes[n].bookmaker
+      }));
+      const profit = stake / impliedSum - stake;
+      const meterW = Math.min(b.arbProfit * 10, 100);
+      extraHtml = `
+        <div class="value-meter">
+          <div class="meter-label"><span>Arbitrage profit</span><span>+${b.arbProfit.toFixed(2)}%</span></div>
+          <div class="meter-track"><div class="meter-fill" style="width:${meterW}%"></div></div>
+        </div>
+        <div class="arb-calc">
+          ${stakes.map(s => `Indsæt <strong>${s.stake.toFixed(0)} kr.</strong> på "${s.name}" hos ${s.bm}`).join('<br>')}
+          <br>→ Garanteret profit: <span class="profit">+${profit.toFixed(0)} kr. (+${b.arbProfit.toFixed(2)}%)</span>
+        </div>`;
+    } else if (b.hasValue) {
+      const topValue = Math.max(...b.valueOdds.map(v => v.value));
+      const meterW = Math.min(topValue * 4, 100);
+      const best = b.valueOdds.find(v => v.value === topValue);
+      extraHtml = `
+        <div class="value-meter">
+          <div class="meter-label"><span>Value vs. fair odds</span><span>+${topValue.toFixed(1)}%</span></div>
+          <div class="meter-track"><div class="meter-fill yellow-fill" style="width:${meterW}%"></div></div>
+        </div>
+        <div class="arb-calc">
+          Best value: <strong>"${best.name}"</strong> @ <strong>${best.best.toFixed(2)}</strong> (fair: ${best.fair.toFixed(2)}) hos ${best.bookmaker}<br>
+          Anbefalet indsats (2% af bankroll): <span class="profit">${stake.toFixed(0)} kr.</span>
+        </div>`;
+    }
+
+    const type = b.isArb ? 'arb' : 'value';
+    const badgeText = b.isArb ? `ARB +${b.arbProfit.toFixed(2)}%` : `VALUE +${Math.max(...b.valueOdds.map(v=>v.value)).toFixed(1)}%`;
+
+    return `
+      <div class="bet-card ${type}">
+        <div class="bet-top">
+          <div>
+            <div class="match-name">${b.homeTeam} vs ${b.awayTeam}</div>
+            <div class="match-meta">${league} · ${dateStr} ${timeStr} · ${b.bookmakerCount} bookmakers</div>
+          </div>
+          <span class="bet-badge ${type}">${badgeText}</span>
+        </div>
+        <div class="odds-grid">${oddsHtml}</div>
+        ${extraHtml}
+      </div>`;
+  }).join('');
+
+  const arbCount = filtered.filter(b => b.isArb).length;
+  const valCount = filtered.filter(b => b.hasValue).length;
+
+  document.getElementById('resultsArea').innerHTML = `
+    <div class="section-title">
+      ${currentMode === 'all' ? 'Alle muligheder' : currentMode === 'arb' ? 'Arbitrage' : 'Value bets'}
+      <span class="count">${filtered.length}</span>
+    </div>
+    ${html}`;
+}
+
+// ─── TRACKER ──────────────────────────────────────────
+function renderTracker() {
+  document.getElementById('trackerCount').textContent = trackerBets.length;
+  if (!trackerBets.length) {
+    document.getElementById('trackerEmpty').style.display = '';
+    document.getElementById('trackerTableWrap').style.display = 'none';
+    return;
+  }
+  document.getElementById('trackerEmpty').style.display = 'none';
+  document.getElementById('trackerTableWrap').style.display = '';
+
+  let wins = 0, losses = 0, totalStake = 0, totalReturn = 0;
+  const rows = trackerBets.map((b, i) => {
+    let plHtml = '<span class="result-pending">Afventer</span>';
+    let plVal = '–';
+    if (b.result === 'win') {
+      const profit = b.stake * b.odds - b.stake;
+      wins++;
+      totalStake += b.stake;
+      totalReturn += b.stake * b.odds;
+      plVal = `+${profit.toFixed(0)} kr.`;
+      plHtml = `<span class="result-win">+${profit.toFixed(0)} kr.</span>`;
+    } else if (b.result === 'loss') {
+      losses++;
+      totalStake += b.stake;
+      plVal = `-${b.stake} kr.`;
+      plHtml = `<span class="result-loss">-${b.stake.toFixed(0)} kr.</span>`;
+    } else {
+      totalStake += b.stake; // count pending stake
+    }
+    const resultSelect = `
+      <select onchange="updateResult(${i}, this.value)" style="font-size:11px;padding:4px 8px;">
+        <option value="pending" ${b.result==='pending'?'selected':''}>Afventer</option>
+        <option value="win" ${b.result==='win'?'selected':''}>Vundet ✓</option>
+        <option value="loss" ${b.result==='loss'?'selected':''}>Tabt ✗</option>
+      </select>`;
+    return `<tr>
+      <td>${b.date}</td>
+      <td>${b.match}</td>
+      <td>${b.market}</td>
+      <td>${parseFloat(b.odds).toFixed(2)}</td>
+      <td>${parseFloat(b.stake).toFixed(0)} kr.</td>
+      <td><span class="bet-badge ${b.type}" style="font-size:10px;">${b.type.toUpperCase()}</span></td>
+      <td>${resultSelect}</td>
+      <td>${plHtml}</td>
+      <td><button class="btn btn-outline" style="padding:4px 8px;font-size:11px;" onclick="deleteBet(${i})">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('trackerBody').innerHTML = rows;
+
+  const settledStake = trackerBets.filter(b => b.result !== 'pending').reduce((s,b) => s + b.stake, 0);
+  const pl = totalReturn - trackerBets.filter(b => b.result !== 'pending').reduce((s,b) => s + b.stake, 0);
+  const roi = settledStake > 0 ? (pl / settledStake * 100) : 0;
+
+  document.getElementById('tStatTotal').textContent = trackerBets.length;
+  document.getElementById('tStatWins').textContent = wins;
+  document.getElementById('tStatLoss').textContent = losses;
+  document.getElementById('tStatROI').textContent = `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%`;
+  document.getElementById('tStatROI').className = `stat-value ${roi >= 0 ? '' : 'red'}`;
+  document.getElementById('tStatPL').textContent = `${pl >= 0 ? '+' : ''}${pl.toFixed(0)} kr.`;
+  document.getElementById('tStatPL').className = `stat-value ${pl >= 0 ? '' : 'red'}`;
+}
+
+function showLogForm() { document.getElementById('logFormArea').style.display = ''; }
+function hideLogForm() { document.getElementById('logFormArea').style.display = 'none'; }
+
+function logBet() {
+  const match = document.getElementById('logMatch').value.trim();
+  const market = document.getElementById('logMarket').value.trim();
+  const odds = parseFloat(document.getElementById('logOdds').value);
+  const stake = parseFloat(document.getElementById('logStake').value);
+  const type = document.getElementById('logType').value;
+  if (!match || !odds || !stake) { alert('Udfyld kamp, odds og indsats.'); return; }
+  trackerBets.unshift({ match, market, odds, stake, type, result: 'pending', date: new Date().toLocaleDateString('da-DK') });
+  saveBets();
+  hideLogForm();
+  renderTracker();
+}
+
+function updateResult(i, val) {
+  trackerBets[i].result = val;
+  saveBets();
+  renderTracker();
+}
+
+function deleteBet(i) {
+  if (!confirm('Slet dette bet?')) return;
+  trackerBets.splice(i, 1);
+  saveBets();
+  renderTracker();
+}
+
+function saveBets() {
+  localStorage.setItem('oddsjager_bets', JSON.stringify(trackerBets));
+  document.getElementById('trackerCount').textContent = trackerBets.length;
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = '⚠ ' + msg;
+  el.style.display = '';
+}
+</script>
+</body>
+</html>
