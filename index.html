@@ -17,13 +17,14 @@
   header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
   .logo { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--green); }
   .logo span { color: var(--text); }
-  .header-right { display: flex; align-items: center; gap: 12px; }
-  .api-badge { font-size: 11px; font-family: var(--mono); color: var(--muted); background: var(--card); border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; }
-  .api-badge.connected { color: var(--green); border-color: var(--green); }
+  .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .badge-sm { font-size: 11px; font-family: var(--mono); color: var(--muted); background: var(--card); border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; }
+  .badge-sm.connected { color: var(--green); border-color: var(--green); }
+  .badge-sm.synced { color: var(--blue); border-color: var(--blue); }
   .model-status { display: flex; align-items: center; gap: 6px; font-size: 12px; font-family: var(--mono); color: var(--muted); }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-  .status-dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); }
-  .status-dot.training { background: var(--yellow); animation: pulse 1s infinite; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .dot.yellow { background: var(--yellow); animation: pulse 1s infinite; }
   @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
   .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; margin-bottom: 16px; }
@@ -34,7 +35,7 @@
     font-family: var(--mono); font-size: 13px; padding: 10px 14px; border-radius: 6px; outline: none; transition: border-color 0.2s;
   }
   input:focus, select:focus { border-color: var(--green); }
-  .api-input { flex: 1; min-width: 240px; }
+  .api-input { flex: 1; min-width: 220px; }
   .btn { font-family: var(--sans); font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; }
   .btn:active { transform: scale(0.97); }
   .btn-green { background: var(--green); color: #0F1923; }
@@ -67,7 +68,8 @@
   .tab.active { color: var(--green); border-bottom-color: var(--green); }
   .section-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
   .pill { background: var(--card); border: 1px solid var(--border); color: var(--green); font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 20px; }
-  .bet-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 12px; }
+  .bet-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 12px; transition: border-color 0.2s; }
+  .bet-card:hover { border-color: #2d4a63; }
   .bet-card.arb { border-left: 3px solid var(--green); }
   .bet-card.value { border-left: 3px solid var(--yellow); }
   .bet-card.model { border-left: 3px solid var(--blue); }
@@ -101,8 +103,7 @@
   .bar-blue { background: linear-gradient(90deg, #1a7fa0, #4FC3F7); }
   .info-box { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; font-size: 12px; font-family: var(--mono); color: var(--muted); line-height: 1.9; margin-top: 8px; }
   .info-box .g { color: var(--green); font-weight: 700; }
-  .info-box .b { color: var(--blue); font-weight: 700; }
-  .info-box .y { color: var(--yellow); }
+  .info-box .b { color: var(--blue); }
   .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
   .empty .ico { font-size: 40px; margin-bottom: 16px; opacity: 0.5; }
   .empty p { font-size: 14px; line-height: 1.6; }
@@ -117,7 +118,8 @@
   .tracker-table tr:hover td { background: rgba(255,255,255,0.015); }
   .log-form { display: flex; gap: 8px; flex-wrap: wrap; }
   .log-form input, .log-form select { font-size: 12px; padding: 7px 10px; }
-  @media(max-width:600px){ .odds-grid{ grid-template-columns: repeat(3,1fr); } header{ padding:12px 16px; } .logo{ font-size:16px; } }
+  .sync-indicator { font-size: 11px; color: var(--muted); font-family: var(--mono); display: flex; align-items: center; gap: 5px; }
+  @media(max-width:600px){ .odds-grid{ grid-template-columns: repeat(3,1fr); } header{ padding:12px 16px; flex-wrap:wrap; gap:8px; } .logo{ font-size:16px; } }
 </style>
 </head>
 <body>
@@ -126,16 +128,17 @@
   <div class="logo">Odds<span>Jæger</span></div>
   <div class="header-right">
     <div class="model-status">
-      <div class="status-dot" id="modelDot"></div>
+      <div class="dot" id="modelDot"></div>
       <span id="modelStatus">Model: ikke trænet</span>
     </div>
-    <div class="api-badge" id="apiBadge">⬤ Ikke forbundet</div>
+    <div class="badge-sm" id="syncBadge">☁ Sky: ikke forbundet</div>
+    <div class="badge-sm" id="apiBadge">⬤ Odds: ikke forbundet</div>
   </div>
 </header>
 
 <div class="container">
 
-  <!-- API -->
+  <!-- ODDS API -->
   <div class="card">
     <h2>The Odds API</h2>
     <div class="row">
@@ -148,8 +151,10 @@
 
   <!-- MODEL -->
   <div class="card">
-    <h2>⚽ Dixon-Coles Model — historisk data fra football-data.co.uk</h2>
-    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">Henter resultater (mål) for de seneste 3 sæsoner og beregner angreb/forsvar-ratings med eksponentiel tidsvægtning. Nylige kampe vægtes markant højere end ældre.</p>
+    <h2>⚽ Dixon-Coles Model</h2>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">
+      Henter historiske kampresultater og beregner angreb/forsvar-ratings med eksponentiel tidsvægtning (Dixon-Coles metoden). Data hentes via CORS-proxy fra football-data.co.uk.
+    </p>
     <div class="league-checks">
       <label><input type="checkbox" id="lg_epl" checked> Premier League</label>
       <label><input type="checkbox" id="lg_laliga" checked> La Liga</label>
@@ -160,7 +165,7 @@
     </div>
     <div class="row">
       <div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.8px;">Vægtning</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.8px;">Vægtning af nylige kampe</div>
         <select id="decayRate">
           <option value="0.003">Moderat (6 mdr. half-life)</option>
           <option value="0.005" selected>Høj (3-4 mdr.) — anbefalet</option>
@@ -226,24 +231,31 @@
   <!-- TRACKER -->
   <div id="tab-tracker" style="display:none;">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-      <div class="section-title">Bets <span class="pill" id="trackerCount">0</span></div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="section-title" style="margin-bottom:0">Bets <span class="pill" id="trackerCount">0</span></div>
+        <div class="sync-indicator" id="syncIndicator"></div>
+      </div>
       <button class="btn btn-outline" onclick="toggleLogForm()">+ Log bet</button>
     </div>
     <div id="logFormWrap" style="display:none;margin-bottom:16px;">
       <div class="card">
         <h2>Log bet manuelt</h2>
         <div class="log-form">
-          <input type="text" id="lMatch" placeholder="Kamp" style="min-width:170px;">
-          <input type="text" id="lMarket" placeholder="Marked" style="min-width:130px;">
+          <input type="text" id="lMatch" placeholder="Kamp (fx Bayern vs Arsenal)" style="min-width:180px;">
+          <input type="text" id="lMarket" placeholder="Marked (fx Hjemmehold)" style="min-width:140px;">
           <input type="number" id="lOdds" placeholder="Odds" step="0.01" style="width:80px;">
           <input type="number" id="lStake" placeholder="Indsats kr." style="width:110px;">
-          <select id="lType"><option value="value">Value</option><option value="arb">Arbitrage</option><option value="model">Model</option></select>
+          <select id="lType">
+            <option value="value">Value bet</option>
+            <option value="arb">Arbitrage</option>
+            <option value="model">Model bet</option>
+          </select>
           <button class="btn btn-green" onclick="logBet()">Gem</button>
           <button class="btn btn-outline" onclick="toggleLogForm()">Annuller</button>
         </div>
       </div>
     </div>
-    <div class="empty" id="trackerEmpty"><div class="ico">📋</div><p>Ingen bets endnu.</p></div>
+    <div class="empty" id="trackerEmpty"><div class="ico">📋</div><p>Ingen bets endnu.<br>Bets gemmes i skyen og ses på alle enheder.</p></div>
     <div id="trackerWrap" style="display:none;">
       <div class="stats-grid" style="margin-bottom:20px;">
         <div class="stat-box"><div class="stat-val" id="tTotal">0</div><div class="stat-lbl">I alt</div></div>
@@ -262,28 +274,111 @@
 </div>
 
 <script>
+// ── SUPABASE CONFIG ───────────────────────────────────
+const SUPABASE_URL = 'https://ukhnylfjenxrzlfootrt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVraG55bGZqZW54cnpsZm9vdHJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5Njg0MjMsImV4cCI6MjA5OTU0NDQyM30.CUvzPcIKb5DLdp4Xlu-yecNCx-sNhv-oqWrApUR7xRM';
+
+async function sbFetch(path, options = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': options.prefer || 'return=representation',
+      ...options.headers
+    },
+    ...options
+  });
+  if (!res.ok) throw new Error(`Supabase fejl: ${res.status}`);
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+async function loadBetsFromCloud() {
+  try {
+    const data = await sbFetch('bets?order=created_at.desc&select=*');
+    trackerBets = data.map(b => ({
+      id: b.id,
+      match: b.match,
+      market: b.market,
+      odds: parseFloat(b.odds),
+      stake: parseFloat(b.stake),
+      type: b.type,
+      result: b.result,
+      date: b.bet_date
+    }));
+    document.getElementById('syncBadge').textContent = `☁ Sky: ${trackerBets.length} bets`;
+    document.getElementById('syncBadge').className = 'badge-sm synced';
+    document.getElementById('syncIndicator').innerHTML = `<div class="dot green" style="width:6px;height:6px;"></div> Synkroniseret`;
+    return true;
+  } catch(e) {
+    document.getElementById('syncBadge').textContent = '☁ Sky: fejl';
+    return false;
+  }
+}
+
+async function saveBetToCloud(bet) {
+  try {
+    const res = await sbFetch('bets', {
+      method: 'POST',
+      prefer: 'return=representation',
+      body: JSON.stringify({
+        match: bet.match,
+        market: bet.market || '',
+        odds: bet.odds,
+        stake: bet.stake,
+        type: bet.type,
+        result: bet.result || 'pending',
+        bet_date: bet.date
+      })
+    });
+    return res[0]?.id || null;
+  } catch(e) { console.error('Cloud save fejl:', e); return null; }
+}
+
+async function updateBetInCloud(id, result) {
+  try {
+    await sbFetch(`bets?id=eq.${id}`, {
+      method: 'PATCH',
+      prefer: 'return=minimal',
+      body: JSON.stringify({ result })
+    });
+  } catch(e) { console.error('Cloud update fejl:', e); }
+}
+
+async function deleteBetFromCloud(id) {
+  try {
+    await sbFetch(`bets?id=eq.${id}`, { method: 'DELETE', prefer: 'return=minimal' });
+  } catch(e) { console.error('Cloud delete fejl:', e); }
+}
+
 // ── STATE ─────────────────────────────────────────────
 let allBets = [];
 let currentMode = 'all';
 let modelData = {};
-let trackerBets = JSON.parse(localStorage.getItem('oj_bets') || '[]');
+let trackerBets = [];
 
-// Restore saved API key
+// Restore API key
 const savedKey = localStorage.getItem('oj_apikey');
 if (savedKey) document.getElementById('apiKey').value = savedKey;
 
-// Restore saved model
+// Restore model from localStorage
 try {
   const m = localStorage.getItem('oj_model');
   if (m) {
     modelData = JSON.parse(m);
     const tc = Object.values(modelData).reduce((s,l)=>s+Object.keys(l.teams).length,0);
     if (tc > 0) {
-      document.getElementById('modelDot').className = 'status-dot active';
+      document.getElementById('modelDot').className = 'dot green';
       document.getElementById('modelStatus').textContent = `Model: ${tc} hold (gemt)`;
     }
   }
 } catch(e) { modelData = {}; }
+
+// Load bets from cloud on startup
+loadBetsFromCloud().then(ok => {
+  if (ok) renderTracker();
+});
 
 // ── TABS ──────────────────────────────────────────────
 function showTab(name, el) {
@@ -292,7 +387,7 @@ function showTab(name, el) {
   ['finder','model','tracker'].forEach(t=>{
     document.getElementById('tab-'+t).style.display = t===name ? '' : 'none';
   });
-  if (name==='tracker') renderTracker();
+  if (name==='tracker') { loadBetsFromCloud().then(()=>renderTracker()); }
   if (name==='model') renderModelTab();
 }
 function setMode(mode, el) {
@@ -302,561 +397,373 @@ function setMode(mode, el) {
   renderResults(allBets);
 }
 
-// ── FDCO CSV FETCH ────────────────────────────────────
-// All via football-data.co.uk — direct CORS works
+// ── CORS PROXIES (fallback chain) ─────────────────────
+const PROXIES = [
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  url => `https://cors-anywhere.herokuapp.com/${url}`,
+];
+
+async function fetchWithProxy(url) {
+  for (const proxy of PROXIES) {
+    try {
+      const res = await fetch(proxy(url), { signal: AbortSignal.timeout(8000) });
+      if (res.ok) {
+        const text = await res.text();
+        if (text && text.length > 100) return text;
+      }
+    } catch(e) { continue; }
+  }
+  return null;
+}
+
+// ── FDCO DATA ─────────────────────────────────────────
 const LEAGUE_CFG = {
-  epl:        { name:'Premier League', code:'E0' },
-  laliga:     { name:'La Liga',        code:'SP1' },
-  bundesliga: { name:'Bundesliga',     code:'D1' },
-  seriea:     { name:'Serie A',        code:'I1' },
-  ligue1:     { name:'Ligue 1',        code:'F1' },
-  superliga:  { name:'Superliga 🇩🇰', code:'DNK' },
+  epl:        { name:'Premier League',  code:'E0',  type:'main' },
+  laliga:     { name:'La Liga',         code:'SP1', type:'main' },
+  bundesliga: { name:'Bundesliga',      code:'D1',  type:'main' },
+  seriea:     { name:'Serie A',         code:'I1',  type:'main' },
+  ligue1:     { name:'Ligue 1',         code:'F1',  type:'main' },
+  superliga:  { name:'Superliga 🇩🇰', code:'DNK', type:'extra' },
 };
 
-// Season codes for football-data.co.uk (e.g. 2223 = 2022/23)
-function seasonCode(startYear) {
-  const y1 = String(startYear).slice(2);
-  const y2 = String(startYear+1).slice(2);
-  return y1+y2;
-}
+function seasonCode(y) { return String(y).slice(2)+String(y+1).slice(2); }
 
-async function fetchFDCO(leagueCode, startYear) {
-  const sc = seasonCode(startYear);
-  // Main leagues use mmz4281/SSSS/XX.csv, extras use single file
+async function fetchFDCO(code, startYear, type) {
   let url;
-  if (leagueCode === 'DNK') {
-    url = `https://www.football-data.co.uk/new/${leagueCode}.csv`;
+  if (type === 'extra') {
+    url = `https://www.football-data.co.uk/new/${code}.csv`;
   } else {
-    url = `https://www.football-data.co.uk/mmz4281/${sc}/${leagueCode}.csv`;
+    url = `https://www.football-data.co.uk/mmz4281/${seasonCode(startYear)}/${code}.csv`;
   }
-
-  try {
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) return [];
-    const text = await res.text();
-    return parseFDCO(text, startYear);
-  } catch(e) { return []; }
+  const text = await fetchWithProxy(url);
+  if (!text) return [];
+  return parseFDCO(text, startYear, type);
 }
 
-function parseFDCO(csv, seasonStartYear) {
+function parseFDCO(csv, startYear, type) {
   const lines = csv.trim().split('\n').filter(l=>l.trim());
   if (lines.length < 2) return [];
-  const raw_headers = lines[0].split(',');
-  const headers = raw_headers.map(h=>h.trim().replace(/\r/g,'').replace(/["\uFEFF]/g,''));
-
+  const headers = lines[0].split(',').map(h=>h.trim().replace(/\r|\uFEFF|"/g,''));
   const idx = {};
-  ['Date','HomeTeam','AwayTeam','FTHG','FTAG','FTR'].forEach(h=>{
-    idx[h] = headers.indexOf(h);
-  });
-  if (idx.HomeTeam < 0 || idx.FTHG < 0) return [];
+  ['Date','HomeTeam','AwayTeam','FTHG','FTAG'].forEach(h=>{ idx[h]=headers.indexOf(h); });
+  if (idx.HomeTeam<0||idx.FTHG<0) return [];
 
   const matches = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',').map(c=>c.trim().replace(/\r/g,'').replace(/"/g,''));
-    const home = cols[idx.HomeTeam];
-    const away = cols[idx.AwayTeam];
-    if (!home || !away) continue;
-    const hg = parseFloat(cols[idx.FTHG]);
-    const ag = parseFloat(cols[idx.FTAG]);
-    if (isNaN(hg) || isNaN(ag)) continue;
-
-    // Parse date dd/mm/yy or dd/mm/yyyy
-    let date = new Date();
-    const rawDate = cols[idx.Date] || '';
-    const dp = rawDate.split('/');
-    if (dp.length === 3) {
-      const yr = dp[2].length===2 ? '20'+dp[2] : dp[2];
-      date = new Date(`${yr}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}`);
+  for (let i=1;i<lines.length;i++) {
+    const cols = lines[i].split(',').map(c=>c.trim().replace(/\r|"/g,''));
+    const home=cols[idx.HomeTeam], away=cols[idx.AwayTeam];
+    if(!home||!away) continue;
+    const hg=parseFloat(cols[idx.FTHG]), ag=parseFloat(cols[idx.FTAG]);
+    if(isNaN(hg)||isNaN(ag)) continue;
+    let date=new Date();
+    const dp=(cols[idx.Date]||'').split('/');
+    if(dp.length===3){ const yr=dp[2].length===2?'20'+dp[2]:dp[2]; date=new Date(`${yr}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}`); }
+    if(type==='extra'){
+      const yr=date.getFullYear();
+      if(yr<startYear||yr>startYear+1) continue;
     }
-
-    // Filter by season start year for DNK (single file)
-    if (seasonStartYear && date.getFullYear() < seasonStartYear) continue;
-    if (seasonStartYear && date.getFullYear() > seasonStartYear + 1) continue;
-
-    matches.push({ h: home, a: away, hg, ag, date });
+    if(!isNaN(date.getTime())) matches.push({h:home,a:away,hg,ag,date});
   }
   return matches;
 }
 
 // ── DIXON-COLES ───────────────────────────────────────
-function dcWeight(date, decay) {
-  const days = (Date.now() - date.getTime()) / 86400000;
-  return Math.exp(-decay * days);
-}
+function dcWeight(date, decay) { return Math.exp(-decay*(Date.now()-date.getTime())/86400000); }
 
 function trainDC(matches, decay) {
-  if (matches.length < 10) return null;
-  const teams = {};
-  matches.forEach(m=>{
-    if (!teams[m.h]) teams[m.h] = { att:1, def:1 };
-    if (!teams[m.a]) teams[m.a] = { att:1, def:1 };
-  });
-  const tn = Object.keys(teams);
-
-  // Weighted averages
-  let tw=0, thg=0, tag=0;
+  if(matches.length<10) return null;
+  const teams={};
+  matches.forEach(m=>{ if(!teams[m.h])teams[m.h]={att:1,def:1}; if(!teams[m.a])teams[m.a]={att:1,def:1}; });
+  const tn=Object.keys(teams);
+  let tw=0,thg=0,tag=0;
   matches.forEach(m=>{ const w=dcWeight(m.date,decay); tw+=w; thg+=m.hg*w; tag+=m.ag*w; });
-  const avgH = tw>0 ? thg/tw : 1.4;
-  const avgA = tw>0 ? tag/tw : 1.1;
-  const homeAdv = avgA>0 ? avgH/avgA : 1.3;
-
-  // Iterate 60 times
-  for (let iter=0; iter<60; iter++) {
+  const avgH=tw>0?thg/tw:1.4, avgA=tw>0?tag/tw:1.1, homeAdv=avgA>0?avgH/avgA:1.3;
+  for(let iter=0;iter<60;iter++){
     const an={},ad={},dn={},dd={};
-    tn.forEach(t=>{ an[t]=0; ad[t]=0; dn[t]=0; dd[t]=0; });
+    tn.forEach(t=>{an[t]=0;ad[t]=0;dn[t]=0;dd[t]=0;});
     matches.forEach(m=>{
-      const w = dcWeight(m.date, decay);
-      const ht = teams[m.h], at = teams[m.a];
-      an[m.h] += w*m.hg;     ad[m.h] += w*at.def*homeAdv*avgA;
-      an[m.a] += w*m.ag;     ad[m.a] += w*ht.def*avgA;
-      dn[m.h] += w*m.ag;     dd[m.h] += w*at.att*avgA;
-      dn[m.a] += w*m.hg;     dd[m.a] += w*ht.att*homeAdv*avgA;
+      const w=dcWeight(m.date,decay), ht=teams[m.h], at=teams[m.a];
+      an[m.h]+=w*m.hg; ad[m.h]+=w*at.def*homeAdv*avgA;
+      an[m.a]+=w*m.ag; ad[m.a]+=w*ht.def*avgA;
+      dn[m.h]+=w*m.ag; dd[m.h]+=w*at.att*avgA;
+      dn[m.a]+=w*m.hg; dd[m.a]+=w*ht.att*homeAdv*avgA;
     });
-    tn.forEach(t=>{
-      if(ad[t]>0) teams[t].att = an[t]/ad[t];
-      if(dd[t]>0) teams[t].def = dn[t]/dd[t];
-    });
-    // Normalize
-    const ma = tn.reduce((s,t)=>s+teams[t].att,0)/tn.length;
-    const md = tn.reduce((s,t)=>s+teams[t].def,0)/tn.length;
+    tn.forEach(t=>{ if(ad[t]>0)teams[t].att=an[t]/ad[t]; if(dd[t]>0)teams[t].def=dn[t]/dd[t]; });
+    const ma=tn.reduce((s,t)=>s+teams[t].att,0)/tn.length;
+    const md=tn.reduce((s,t)=>s+teams[t].def,0)/tn.length;
     tn.forEach(t=>{ teams[t].att/=ma; teams[t].def/=md; });
   }
-  return { teams, homeAdv, avgH, avgA, matchCount: matches.length };
+  return {teams,homeAdv,avgH,avgA,matchCount:matches.length};
 }
 
-function poisson(lambda, k) {
-  let p = Math.exp(-lambda);
-  for(let i=0;i<k;i++) p*=lambda/(i+1);
-  return p;
-}
-function tau(hg, ag, lH, lA, rho) {
-  if(hg===0&&ag===0) return 1-lH*lA*rho;
-  if(hg===0&&ag===1) return 1+lH*rho;
-  if(hg===1&&ag===0) return 1+lA*rho;
-  if(hg===1&&ag===1) return 1-rho;
-  return 1;
-}
-function predict(hTeam, aTeam, model) {
-  const ht = model.teams[hTeam], at = model.teams[aTeam];
+function poisson(l,k){ let p=Math.exp(-l); for(let i=0;i<k;i++)p*=l/(i+1); return p; }
+function tau(hg,ag,lH,lA,r){ if(hg===0&&ag===0)return 1-lH*lA*r; if(hg===0&&ag===1)return 1+lH*r; if(hg===1&&ag===0)return 1+lA*r; if(hg===1&&ag===1)return 1-r; return 1; }
+
+function predict(hTeam, aTeam, mdl) {
+  const ht=mdl.teams[hTeam], at=mdl.teams[aTeam];
   if(!ht||!at) return null;
-  const lH = ht.att * at.def * model.homeAdv * model.avgA;
-  const lA = at.att * ht.def * model.avgA;
-  const rho = -0.13;
-  let pH=0, pD=0, pA=0;
+  const lH=ht.att*at.def*mdl.homeAdv*mdl.avgA, lA=at.att*ht.def*mdl.avgA, r=-0.13;
+  let pH=0,pD=0,pA=0;
   for(let h=0;h<=8;h++) for(let a=0;a<=8;a++){
-    const p = poisson(lH,h)*poisson(lA,a)*tau(h,a,lH,lA,rho);
-    if(h>a) pH+=p; else if(h===a) pD+=p; else pA+=p;
+    const p=poisson(lH,h)*poisson(lA,a)*tau(h,a,lH,lA,r);
+    if(h>a)pH+=p; else if(h===a)pD+=p; else pA+=p;
   }
   const tot=pH+pD+pA;
-  return { pH:pH/tot, pD:pD/tot, pA:pA/tot,
-    fH:tot/pH, fD:tot/pD, fA:tot/pA, lH, lA };
+  return {pH:pH/tot,pD:pD/tot,pA:pA/tot,fH:tot/pH,fD:tot/pD,fA:tot/pA,lH,lA};
 }
 
 // ── TRAIN ─────────────────────────────────────────────
 async function trainModel() {
-  const btn = document.getElementById('trainBtn');
-  const dot = document.getElementById('modelDot');
-  const status = document.getElementById('modelStatus');
-  const pw = document.getElementById('progressWrap');
-  const pf = document.getElementById('progressFill');
-  const pl = document.getElementById('progressLabel');
-  const decay = parseFloat(document.getElementById('decayRate').value);
+  const btn=document.getElementById('trainBtn');
+  const decay=parseFloat(document.getElementById('decayRate').value);
+  const selected=Object.keys(LEAGUE_CFG).filter(k=>document.getElementById('lg_'+k)?.checked);
+  if(!selected.length){alert('Vælg mindst én liga.');return;}
 
-  const selected = Object.keys(LEAGUE_CFG).filter(k=>document.getElementById('lg_'+k)?.checked);
-  if (!selected.length) { alert('Vælg mindst én liga.'); return; }
+  btn.disabled=true;
+  document.getElementById('modelDot').className='dot yellow';
+  document.getElementById('modelStatus').textContent='Model: træner...';
+  const pw=document.getElementById('progressWrap');
+  const pf=document.getElementById('progressFill');
+  const pl=document.getElementById('progressLabel');
+  pw.style.display='';
+  modelData={};
 
-  btn.disabled = true;
-  dot.className = 'status-dot training';
-  status.textContent = 'Model: træner...';
-  pw.style.display = '';
-  modelData = {};
+  const seasons=[2022,2023,2024];
+  const total=selected.length*seasons.length;
+  let step=0;
 
-  const seasons = [2022, 2023, 2024];
-  const total = selected.length * seasons.length;
-  let step = 0;
-
-  for (const key of selected) {
-    const cfg = LEAGUE_CFG[key];
-    let allMatches = [];
-
-    for (const yr of seasons) {
+  for(const key of selected){
+    const cfg=LEAGUE_CFG[key];
+    let allMatches=[];
+    for(const yr of seasons){
       step++;
-      const pct = Math.round(step/total*100);
-      pf.style.width = pct+'%';
-      pl.textContent = `${cfg.name} ${yr}/${yr+1}... (${pct}%)`;
-
-      const matches = await fetchFDCO(cfg.code, yr);
-      allMatches = allMatches.concat(matches);
-      await new Promise(r=>setTimeout(r,300));
+      const pct=Math.round(step/total*100);
+      pf.style.width=pct+'%';
+      pl.textContent=`${cfg.name} ${yr}/${yr+1}... (${pct}%)`;
+      const matches=await fetchFDCO(cfg.code,yr,cfg.type);
+      allMatches=allMatches.concat(matches);
+      await new Promise(r=>setTimeout(r,200));
     }
-
-    if (allMatches.length > 5) {
-      const m = trainDC(allMatches, decay);
-      if (m) {
-        m.name = cfg.name;
-        modelData[key] = m;
-        console.log(`✓ ${cfg.name}: ${Object.keys(m.teams).length} hold, ${m.matchCount} kampe`);
-      }
+    if(allMatches.length>5){
+      const m=trainDC(allMatches,decay);
+      if(m){ m.name=cfg.name; modelData[key]=m;
+        console.log(`✓ ${cfg.name}: ${Object.keys(m.teams).length} hold, ${m.matchCount} kampe`); }
     }
   }
 
-  const tc = Object.values(modelData).reduce((s,l)=>s+Object.keys(l.teams).length,0);
-  const lc = Object.keys(modelData).length;
+  const tc=Object.values(modelData).reduce((s,l)=>s+Object.keys(l.teams).length,0);
+  const lc=Object.keys(modelData).length;
+  document.getElementById('modelDot').className=tc>0?'dot green':'dot';
+  document.getElementById('modelStatus').textContent=tc>0?`Model: ${tc} hold, ${lc} ligaer`:'Model: ingen data';
+  btn.disabled=false;
+  pw.style.display='none';
 
-  dot.className = tc>0 ? 'status-dot active' : 'status-dot';
-  status.textContent = tc>0 ? `Model: ${tc} hold, ${lc} ligaer` : 'Model: ingen data';
-  btn.disabled = false;
-  pw.style.display = 'none';
-
-  if (tc > 0) {
-    try { localStorage.setItem('oj_model', JSON.stringify(modelData)); } catch(e) {}
-    if (allBets.length > 0) renderResults(allBets);
+  if(tc>0){
+    try{localStorage.setItem('oj_model',JSON.stringify(modelData));}catch(e){}
+    if(allBets.length>0) renderResults(allBets);
     renderModelTab();
-    console.log('Model gemt. Ligaer:', Object.keys(modelData));
+    console.log('Model klar. Ligaer:',Object.keys(modelData));
   } else {
-    alert('Ingen data hentet. Prøv igen om lidt — football-data.co.uk kan have midlertidig downtime.');
+    alert('Ingen data hentet. Proxyen kan have problemer — prøv igen om lidt.');
   }
 }
 
 // ── FETCH ODDS ────────────────────────────────────────
-async function fetchOdds() {
-  const key = document.getElementById('apiKey').value.trim();
-  if (!key) { showErr('Indtast API-nøgle.'); return; }
-  localStorage.setItem('oj_apikey', key);
-
-  const region = document.getElementById('regionSelect').value;
-  document.getElementById('fetchBtn').disabled = true;
-  document.getElementById('resultsArea').innerHTML = '<div class="loading"><div class="spinner"></div>Henter odds...</div>';
-  document.getElementById('errMsg').style.display = 'none';
-  document.getElementById('infoMsg').style.display = 'none';
-  document.getElementById('statsGrid').style.display = 'none';
-
-  try {
-    const sr = await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${key}`);
-    if (!sr.ok) throw new Error('Ugyldig API-nøgle.');
-    const sports = await sr.json();
-    const football = sports.filter(s=>s.group==='Soccer'&&s.active).map(s=>s.key);
-
-    let allMatches = [];
-    for (let i=0; i<Math.min(football.length,20); i+=5) {
-      const batch = football.slice(i,i+5);
-      const res = await Promise.all(batch.map(s=>
+async function fetchOdds(){
+  const key=document.getElementById('apiKey').value.trim();
+  if(!key){showErr('Indtast API-nøgle.');return;}
+  localStorage.setItem('oj_apikey',key);
+  const region=document.getElementById('regionSelect').value;
+  document.getElementById('fetchBtn').disabled=true;
+  document.getElementById('resultsArea').innerHTML='<div class="loading"><div class="spinner"></div>Henter odds...</div>';
+  document.getElementById('errMsg').style.display='none';
+  document.getElementById('infoMsg').style.display='none';
+  document.getElementById('statsGrid').style.display='none';
+  try{
+    const sr=await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${key}`);
+    if(!sr.ok) throw new Error('Ugyldig API-nøgle.');
+    const sports=await sr.json();
+    const football=sports.filter(s=>s.group==='Soccer'&&s.active).map(s=>s.key);
+    let allMatches=[];
+    for(let i=0;i<Math.min(football.length,20);i+=5){
+      const batch=football.slice(i,i+5);
+      const res=await Promise.all(batch.map(s=>
         fetch(`https://api.the-odds-api.com/v4/sports/${s}/odds/?apiKey=${key}&regions=${region}&markets=h2h&oddsFormat=decimal`)
           .then(r=>r.ok?r.json():[]).catch(()=>[])
       ));
-      res.forEach(r=>{ if(Array.isArray(r)) allMatches=allMatches.concat(r); });
+      res.forEach(r=>{if(Array.isArray(r))allMatches=allMatches.concat(r);});
     }
-
-    document.getElementById('apiBadge').textContent = '⬤ Forbundet';
-    document.getElementById('apiBadge').className = 'api-badge connected';
-
-    allBets = analyzeMatches(allMatches);
-    document.getElementById('statsGrid').style.display = 'grid';
+    document.getElementById('apiBadge').textContent='⬤ Odds: forbundet';
+    document.getElementById('apiBadge').className='badge-sm connected';
+    allBets=analyzeMatches(allMatches);
+    document.getElementById('statsGrid').style.display='grid';
     renderResults(allBets);
-
-    if (!Object.keys(modelData).length) {
-      showInfo('💡 Træn modellen ovenfor for at se model-baserede value bets (xG Dixon-Coles).');
-    }
-  } catch(e) {
-    showErr(e.message || 'Ukendt fejl.');
-    document.getElementById('resultsArea').innerHTML = '';
-  }
-  document.getElementById('fetchBtn').disabled = false;
+    if(!Object.keys(modelData).length) showInfo('💡 Træn modellen ovenfor for at se model-baserede value bets.');
+  }catch(e){showErr(e.message||'Ukendt fejl.');document.getElementById('resultsArea').innerHTML='';}
+  document.getElementById('fetchBtn').disabled=false;
 }
 
-// ── MAP SPORT → LEAGUE KEY ────────────────────────────
-function sportToLeague(sportKey) {
-  const k = sportKey.toLowerCase();
-  if (k.includes('england')||k.includes('epl')||k.includes('premier')) return 'epl';
-  if (k.includes('spain')||k.includes('la_liga')) return 'laliga';
-  if (k.includes('germany')||k.includes('bundesliga')) return 'bundesliga';
-  if (k.includes('italy')||k.includes('serie')) return 'seriea';
-  if (k.includes('france')||k.includes('ligue')) return 'ligue1';
-  if (k.includes('denmark')||k.includes('danish')||k.includes('superliga')) return 'superliga';
+// ── SPORT → LEAGUE KEY ────────────────────────────────
+function sportToLeague(k){
+  k=k.toLowerCase();
+  if(k.includes('england')||k.includes('epl')||k.includes('premier'))return 'epl';
+  if(k.includes('spain')||k.includes('la_liga'))return 'laliga';
+  if(k.includes('germany')||k.includes('bundesliga'))return 'bundesliga';
+  if(k.includes('italy')||k.includes('serie'))return 'seriea';
+  if(k.includes('france')||k.includes('ligue'))return 'ligue1';
+  if(k.includes('denmark')||k.includes('danish')||k.includes('superliga'))return 'superliga';
   return null;
 }
-
-function fuzzyMatch(name, teams) {
-  if (teams[name]) return name;
-  const n = name.toLowerCase().replace(/\s/g,'');
-  return Object.keys(teams).find(t=>{
-    const tl = t.toLowerCase().replace(/\s/g,'');
-    return tl===n || tl.includes(n) || n.includes(tl);
-  }) || null;
+function fuzzy(name,teams){
+  if(teams[name])return name;
+  const n=name.toLowerCase().replace(/\s/g,'');
+  return Object.keys(teams).find(t=>{const tl=t.toLowerCase().replace(/\s/g,'');return tl===n||tl.includes(n)||n.includes(tl);})||null;
 }
 
 // ── ANALYZE ───────────────────────────────────────────
-function analyzeMatches(matches) {
-  const minVal = parseFloat(document.getElementById('minValue').value)||3;
-  const results = [];
-
+function analyzeMatches(matches){
+  const minVal=parseFloat(document.getElementById('minValue').value)||3;
+  const results=[];
   matches.forEach(m=>{
-    if (!m.bookmakers||m.bookmakers.length<3) return;
-
-    const best = {}, allP = {};
-    m.bookmakers.forEach(bm=>{
-      bm.markets?.forEach(mkt=>{
-        if(mkt.key!=='h2h') return;
-        mkt.outcomes?.forEach(o=>{
-          if(!allP[o.name]) allP[o.name]=[];
-          allP[o.name].push(o.price);
-          if(!best[o.name]||o.price>best[o.name].price)
-            best[o.name]={price:o.price,bm:bm.title};
-        });
-      });
-    });
-
-    const names = Object.keys(best);
-    if(names.length<2) return;
-
-    const mktFair = {};
-    names.forEach(n=>{ const p=allP[n]; mktFair[n]=p.reduce((a,b)=>a+b,0)/p.length; });
-
-    const implSum = names.reduce((s,n)=>s+1/best[n].price,0);
-    const arbProfit = (1/implSum-1)*100;
-
-    const valueOdds = names.map(n=>({
-      name:n, price:best[n].price, bm:best[n].bm,
-      fair:mktFair[n], val:mktFair[n]>0?((best[n].price-mktFair[n])/mktFair[n])*100:0
-    })).filter(v=>v.val>=minVal);
-
-    // Model
-    let modelPred = null;
-    const lk = sportToLeague(m.sport_key);
-    if (lk && modelData[lk]) {
-      const mdl = modelData[lk];
-      const hm = fuzzyMatch(m.home_team, mdl.teams);
-      const am = fuzzyMatch(m.away_team, mdl.teams);
-      if (hm && am) {
-        const p = predict(hm, am, mdl);
-        if (p) {
-          modelPred = p;
-          modelPred.mvBets = names.map(n=>{
+    if(!m.bookmakers||m.bookmakers.length<3)return;
+    const best={},allP={};
+    m.bookmakers.forEach(bm=>{bm.markets?.forEach(mkt=>{if(mkt.key!=='h2h')return;mkt.outcomes?.forEach(o=>{if(!allP[o.name])allP[o.name]=[];allP[o.name].push(o.price);if(!best[o.name]||o.price>best[o.name].price)best[o.name]={price:o.price,bm:bm.title};});});});
+    const names=Object.keys(best);
+    if(names.length<2)return;
+    const mktFair={};
+    names.forEach(n=>{const p=allP[n];mktFair[n]=p.reduce((a,b)=>a+b,0)/p.length;});
+    const implSum=names.reduce((s,n)=>s+1/best[n].price,0);
+    const arbProfit=(1/implSum-1)*100;
+    const valueOdds=names.map(n=>({name:n,price:best[n].price,bm:best[n].bm,fair:mktFair[n],val:mktFair[n]>0?((best[n].price-mktFair[n])/mktFair[n])*100:0})).filter(v=>v.val>=minVal);
+    let modelPred=null;
+    const lk=sportToLeague(m.sport_key);
+    if(lk&&modelData[lk]){
+      const mdl=modelData[lk];
+      const hm=fuzzy(m.home_team,mdl.teams), am=fuzzy(m.away_team,mdl.teams);
+      if(hm&&am){
+        const p=predict(hm,am,mdl);
+        if(p){
+          modelPred=p;
+          modelPred.mvBets=names.map(n=>{
             let fair;
-            const nl = n.toLowerCase();
-            const hl = m.home_team.toLowerCase();
-            if(nl===hl||nl.includes(hl.split(' ')[0])) fair=p.fH;
-            else if(nl==='draw'||nl==='uafgjort') fair=p.fD;
+            const nl=n.toLowerCase(),hl=m.home_team.toLowerCase();
+            if(nl===hl||nl.includes(hl.split(' ')[0]))fair=p.fH;
+            else if(nl==='draw')fair=p.fD;
             else fair=p.fA;
-            const mv = fair>0?((best[n].price-fair)/fair)*100:0;
-            return { name:n, price:best[n].price, bm:best[n].bm, fair, mv };
+            const mv=fair>0?((best[n].price-fair)/fair)*100:0;
+            return{name:n,price:best[n].price,bm:best[n].bm,fair,mv};
           }).filter(v=>v.mv>=minVal);
         }
       }
     }
-
-    const isArb = arbProfit>0.5;
-    const hasVal = valueOdds.length>0;
-    const hasMdl = modelPred?.mvBets?.length>0;
-    if(!isArb&&!hasVal&&!hasMdl) return;
-
-    results.push({
-      id:m.id, home:m.home_team, away:m.away_team, sport:m.sport_key,
-      start:m.commence_time, best, mktFair, allP, arbProfit, valueOdds,
-      isArb, hasVal, hasMdl, modelPred, bmCount:m.bookmakers.length, lk
-    });
+    const isArb=arbProfit>0.5, hasVal=valueOdds.length>0, hasMdl=modelPred?.mvBets?.length>0;
+    if(!isArb&&!hasVal&&!hasMdl)return;
+    results.push({id:m.id,home:m.home_team,away:m.away_team,sport:m.sport_key,start:m.commence_time,best,mktFair,allP,arbProfit,valueOdds,isArb,hasVal,hasMdl,modelPred,bmCount:m.bookmakers.length,lk});
   });
-
-  results.sort((a,b)=>{
-    if(a.isArb&&!b.isArb) return -1;
-    if(!a.isArb&&b.isArb) return 1;
-    return 0;
-  });
+  results.sort((a,b)=>{if(a.isArb&&!b.isArb)return -1;if(!a.isArb&&b.isArb)return 1;return 0;});
   return results;
 }
 
 // ── RENDER RESULTS ────────────────────────────────────
-function renderResults(bets) {
-  const filtered = bets.filter(b=>{
-    if(currentMode==='arb') return b.isArb;
-    if(currentMode==='value') return b.hasVal;
-    if(currentMode==='model') return b.hasMdl;
+function renderResults(bets){
+  const filtered=bets.filter(b=>{
+    if(currentMode==='arb')return b.isArb;
+    if(currentMode==='value')return b.hasVal;
+    if(currentMode==='model')return b.hasMdl;
     return true;
   });
-
-  const bankroll = parseFloat(document.getElementById('bankroll').value)||10000;
-  const stake = bankroll*0.02;
-  const bestArb = bets.filter(b=>b.isArb).length ? Math.max(...bets.filter(b=>b.isArb).map(b=>b.arbProfit)) : 0;
-
-  document.getElementById('sArb').textContent = bets.filter(b=>b.isArb).length;
-  document.getElementById('sVal').textContent = bets.filter(b=>b.hasVal).length;
-  document.getElementById('sMdl').textContent = bets.filter(b=>b.hasMdl).length;
-  document.getElementById('sKampe').textContent = bets.length;
-  document.getElementById('sBestArb').textContent = bestArb>0?`+${bestArb.toFixed(2)}%`:'–';
-
-  if(!filtered.length){
-    document.getElementById('resultsArea').innerHTML='<div class="empty"><div class="ico">🔎</div><p>Ingen resultater. Prøv at sænke min. value % eller skift filter.</p></div>';
-    return;
-  }
-
-  const names_label = n => n==='Draw'?'🤝 Uafgjort':'';
-
-  const html = filtered.map(b=>{
-    const dt = new Date(b.start);
-    const ds = dt.toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'});
-    const ts = dt.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'});
-    const league = b.sport.replace('soccer_','').replace(/_/g,' ').toUpperCase();
-    const names = Object.keys(b.best);
-
-    const oddsHtml = names.map(n=>{
-      const isVal = b.valueOdds.some(v=>v.name===n);
-      const isMdl = b.modelPred?.mvBets?.some(v=>v.name===n);
-      let cls = isVal?'hi':isMdl?'mdl':'';
-      let modelFair = '';
+  const bankroll=parseFloat(document.getElementById('bankroll').value)||10000;
+  const stake=bankroll*0.02;
+  const bestArb=bets.filter(b=>b.isArb).length?Math.max(...bets.filter(b=>b.isArb).map(b=>b.arbProfit)):0;
+  document.getElementById('sArb').textContent=bets.filter(b=>b.isArb).length;
+  document.getElementById('sVal').textContent=bets.filter(b=>b.hasVal).length;
+  document.getElementById('sMdl').textContent=bets.filter(b=>b.hasMdl).length;
+  document.getElementById('sKampe').textContent=bets.length;
+  document.getElementById('sBestArb').textContent=bestArb>0?`+${bestArb.toFixed(2)}%`:'–';
+  if(!filtered.length){document.getElementById('resultsArea').innerHTML='<div class="empty"><div class="ico">🔎</div><p>Ingen resultater. Prøv at sænke min. value % eller skift filter.</p></div>';return;}
+  const html=filtered.map(b=>{
+    const dt=new Date(b.start);
+    const ds=dt.toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'});
+    const ts=dt.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'});
+    const league=b.sport.replace('soccer_','').replace(/_/g,' ').toUpperCase();
+    const names=Object.keys(b.best);
+    const oddsHtml=names.map(n=>{
+      const isVal=b.valueOdds.some(v=>v.name===n), isMdl=b.modelPred?.mvBets?.some(v=>v.name===n);
+      let cls=isVal?'hi':isMdl?'mdl':'';
+      let mf='';
       if(b.modelPred){
-        const nl=n.toLowerCase(), hl=b.home.toLowerCase();
-        let f;
-        if(nl===hl||nl.includes(hl.split(' ')[0])) f=b.modelPred.fH;
-        else if(nl==='draw') f=b.modelPred.fD;
-        else f=b.modelPred.fA;
-        modelFair = `<div class="odds-sub" style="color:var(--blue)">mdl: ${f.toFixed(2)}</div>`;
+        const nl=n.toLowerCase(),hl=b.home.toLowerCase();
+        let f=nl===hl||nl.includes(hl.split(' ')[0])?b.modelPred.fH:nl==='draw'?b.modelPred.fD:b.modelPred.fA;
+        mf=`<div class="odds-sub" style="color:var(--blue)">mdl: ${f.toFixed(2)}</div>`;
       }
-      const lbl = n===b.home?'🏠 Hjemme':n==='Draw'?'🤝 Uafgjort':'✈️ Ude';
-      return `<div class="odds-cell ${cls}">
-        <div class="odds-lbl">${lbl}</div>
-        <div class="odds-num">${b.best[n].price.toFixed(2)}</div>
-        <div class="odds-sub">mkt: ${b.mktFair[n].toFixed(2)}</div>
-        ${modelFair}
-        <div class="odds-sub">${b.best[n].bm}</div>
-      </div>`;
+      const lbl=n===b.home?'🏠 Hjemme':n==='Draw'?'🤝 Uafgjort':'✈️ Ude';
+      return `<div class="odds-cell ${cls}"><div class="odds-lbl">${lbl}</div><div class="odds-num">${b.best[n].price.toFixed(2)}</div><div class="odds-sub">mkt: ${b.mktFair[n].toFixed(2)}</div>${mf}<div class="odds-sub">${b.best[n].bm}</div></div>`;
     }).join('');
-
-    let extra = '';
-
+    let extra='';
     if(b.isArb){
-      const is = names.reduce((s,n)=>s+1/b.best[n].price,0);
-      const stks = names.map(n=>({n,s:(stake/is)*(1/b.best[n].price),bm:b.best[n].bm}));
-      const pf = stake/is-stake;
-      const mw = Math.min(b.arbProfit*10,100);
-      extra += `<div class="meter"><div class="meter-top"><span>Arbitrage profit</span><span class="meter-val green">+${b.arbProfit.toFixed(2)}%</span></div>
-        <div class="meter-track"><div class="meter-bar bar-green" style="width:${mw}%"></div></div></div>
-        <div class="info-box">${stks.map(s=>`Indsæt <strong>${s.s.toFixed(0)} kr.</strong> på "${s.n}" hos ${s.bm}`).join('<br>')}
-        <br>→ Garanteret profit: <span class="g">+${pf.toFixed(0)} kr. (+${b.arbProfit.toFixed(2)}%)</span></div>`;
+      const is=names.reduce((s,n)=>s+1/b.best[n].price,0);
+      const stks=names.map(n=>({n,s:(stake/is)*(1/b.best[n].price),bm:b.best[n].bm}));
+      const pf=stake/is-stake, mw=Math.min(b.arbProfit*10,100);
+      extra+=`<div class="meter"><div class="meter-top"><span>Arbitrage profit</span><span class="meter-val green">+${b.arbProfit.toFixed(2)}%</span></div><div class="meter-track"><div class="meter-bar bar-green" style="width:${mw}%"></div></div></div><div class="info-box">${stks.map(s=>`Indsæt <strong>${s.s.toFixed(0)} kr.</strong> på "${s.n}" hos ${s.bm}`).join('<br>')}<br>→ Garanteret profit: <span class="g">+${pf.toFixed(0)} kr. (+${b.arbProfit.toFixed(2)}%)</span></div>`;
     }
-
     if(b.hasVal&&!b.isArb){
-      const top = b.valueOdds.reduce((a,v)=>v.val>a.val?v:a);
-      const mw = Math.min(top.val*4,100);
-      extra += `<div class="meter" style="margin-top:8px"><div class="meter-top"><span>Market value</span><span class="meter-val yellow">+${top.val.toFixed(1)}%</span></div>
-        <div class="meter-track"><div class="meter-bar bar-yellow" style="width:${mw}%"></div></div></div>
-        <div class="info-box">Value: <strong>"${top.name}"</strong> @ <strong>${top.price.toFixed(2)}</strong> (mkt fair: ${top.fair.toFixed(2)}) — <span class="b">${top.bm}</span><br>
-        Anbefalet indsats (2%): <span class="g">${stake.toFixed(0)} kr.</span></div>`;
+      const top=b.valueOdds.reduce((a,v)=>v.val>a.val?v:a);
+      const mw=Math.min(top.val*4,100);
+      extra+=`<div class="meter" style="margin-top:8px"><div class="meter-top"><span>Market value</span><span class="meter-val yellow">+${top.val.toFixed(1)}%</span></div><div class="meter-track"><div class="meter-bar bar-yellow" style="width:${mw}%"></div></div></div><div class="info-box">Value: <strong>"${top.name}"</strong> @ <strong>${top.price.toFixed(2)}</strong> (mkt fair: ${top.fair.toFixed(2)}) — <span class="b">${top.bm}</span><br>Anbefalet indsats (2%): <span class="g">${stake.toFixed(0)} kr.</span></div>`;
     }
-
     if(b.hasMdl&&b.modelPred){
-      const top = b.modelPred.mvBets.reduce((a,v)=>v.mv>a.mv?v:a);
-      const mw = Math.min(top.mv*4,100);
-      extra += `<div class="meter" style="margin-top:8px"><div class="meter-top"><span>Model value (Dixon-Coles xG)</span><span class="meter-val blue">+${top.mv.toFixed(1)}%</span></div>
-        <div class="meter-track"><div class="meter-bar bar-blue" style="width:${mw}%"></div></div></div>
-        <div class="info-box">Model: <strong>"${top.name}"</strong> @ <strong>${top.price.toFixed(2)}</strong> (model fair: ${top.fair.toFixed(2)}) — ${top.bm}<br>
-        Sandsynligheder: 🏠 ${(b.modelPred.pH*100).toFixed(1)}% · 🤝 ${(b.modelPred.pD*100).toFixed(1)}% · ✈️ ${(b.modelPred.pA*100).toFixed(1)}%<br>
-        Forventede mål: Hjemme <span class="g">${b.modelPred.lH.toFixed(2)}</span> — Ude <span class="g">${b.modelPred.lA.toFixed(2)}</span></div>`;
+      const top=b.modelPred.mvBets.reduce((a,v)=>v.mv>a.mv?v:a);
+      const mw=Math.min(top.mv*4,100);
+      extra+=`<div class="meter" style="margin-top:8px"><div class="meter-top"><span>Model value (Dixon-Coles)</span><span class="meter-val blue">+${top.mv.toFixed(1)}%</span></div><div class="meter-track"><div class="meter-bar bar-blue" style="width:${mw}%"></div></div></div><div class="info-box">Model: <strong>"${top.name}"</strong> @ <strong>${top.price.toFixed(2)}</strong> (fair: ${top.fair.toFixed(2)}) — ${top.bm}<br>Sandsynligheder: 🏠 ${(b.modelPred.pH*100).toFixed(1)}% · 🤝 ${(b.modelPred.pD*100).toFixed(1)}% · ✈️ ${(b.modelPred.pA*100).toFixed(1)}%<br>Forventede mål: Hjemme <span class="g">${b.modelPred.lH.toFixed(2)}</span> — Ude <span class="g">${b.modelPred.lA.toFixed(2)}</span></div>`;
     }
-
-    const badges = [];
-    if(b.isArb) badges.push(`<span class="badge arb">ARB +${b.arbProfit.toFixed(2)}%</span>`);
-    if(b.hasVal&&!b.isArb) badges.push(`<span class="badge value">VALUE +${b.valueOdds.reduce((a,v)=>v.val>a.val?v:a).val.toFixed(1)}%</span>`);
-    if(b.hasMdl) badges.push(`<span class="badge model">MODEL 🧠</span>`);
-
-    const cls = b.isArb?'arb':b.hasMdl?'model':'value';
-    return `<div class="bet-card ${cls}">
-      <div class="bet-top">
-        <div><div class="match-name">${b.home} vs ${b.away}</div>
-        <div class="match-meta">${league} · ${ds} ${ts} · ${b.bmCount} bookmakers</div></div>
-        <div class="badges">${badges.join('')}</div>
-      </div>
-      <div class="odds-grid">${oddsHtml}</div>
-      ${extra}
-    </div>`;
+    const badges=[];
+    if(b.isArb)badges.push(`<span class="badge arb">ARB +${b.arbProfit.toFixed(2)}%</span>`);
+    if(b.hasVal&&!b.isArb)badges.push(`<span class="badge value">VALUE +${b.valueOdds.reduce((a,v)=>v.val>a.val?v:a).val.toFixed(1)}%</span>`);
+    if(b.hasMdl)badges.push(`<span class="badge model">MODEL 🧠</span>`);
+    const cls=b.isArb?'arb':b.hasMdl?'model':'value';
+    return `<div class="bet-card ${cls}"><div class="bet-top"><div><div class="match-name">${b.home} vs ${b.away}</div><div class="match-meta">${league} · ${ds} ${ts} · ${b.bmCount} bookmakers</div></div><div class="badges">${badges.join('')}</div></div><div class="odds-grid">${oddsHtml}</div>${extra}</div>`;
   }).join('');
-
-  document.getElementById('resultsArea').innerHTML =
-    `<div class="section-title">Resultater <span class="pill">${filtered.length}</span></div>${html}`;
+  document.getElementById('resultsArea').innerHTML=`<div class="section-title">Resultater <span class="pill">${filtered.length}</span></div>${html}`;
 }
 
 // ── MODEL TAB ─────────────────────────────────────────
-function renderModelTab() {
-  const lcs = Object.keys(modelData).length;
-  if(!lcs){
-    document.getElementById('modelEmpty').style.display='';
-    document.getElementById('modelContent').style.display='none';
-    return;
-  }
-  document.getElementById('modelEmpty').style.display='none';
-  document.getElementById('modelContent').style.display='';
-
-  const html = Object.entries(modelData).map(([key,mdl])=>{
-    const sorted = Object.entries(mdl.teams).sort((a,b)=>b[1].att-a[1].att).slice(0,20);
-    const rows = sorted.map(([name,s])=>{
-      const aw = Math.min(s.att*50,100);
-      const dw = Math.min((1/Math.max(s.def,0.1))*50,100);
-      return `<tr>
-        <td style="font-size:13px;font-weight:500;padding:8px 8px;">${name}</td>
-        <td style="padding:8px 8px;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div style="width:80px;height:5px;background:var(--card);border-radius:3px;overflow:hidden;"><div style="width:${aw}%;height:100%;background:var(--green);border-radius:3px;"></div></div>
-            <span style="font-family:var(--mono);font-size:11px;color:var(--green);">${s.att.toFixed(2)}</span>
-          </div>
-        </td>
-        <td style="padding:8px 8px;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <div style="width:80px;height:5px;background:var(--card);border-radius:3px;overflow:hidden;"><div style="width:${dw}%;height:100%;background:var(--blue);border-radius:3px;"></div></div>
-            <span style="font-family:var(--mono);font-size:11px;color:var(--blue);">${s.def.toFixed(2)}</span>
-          </div>
-        </td>
-      </tr>`;
+function renderModelTab(){
+  if(!Object.keys(modelData).length){document.getElementById('modelEmpty').style.display='';document.getElementById('modelContent').style.display='none';return;}
+  document.getElementById('modelEmpty').style.display='none';document.getElementById('modelContent').style.display='';
+  const html=Object.entries(modelData).map(([key,mdl])=>{
+    const sorted=Object.entries(mdl.teams).sort((a,b)=>b[1].att-a[1].att).slice(0,20);
+    const rows=sorted.map(([name,s])=>{
+      const aw=Math.min(s.att*50,100), dw=Math.min((1/Math.max(s.def,0.1))*50,100);
+      return `<tr><td style="font-size:13px;font-weight:500;padding:8px;">${name}</td><td style="padding:8px;"><div style="display:flex;align-items:center;gap:8px;"><div style="width:80px;height:5px;background:var(--card);border-radius:3px;overflow:hidden;"><div style="width:${aw}%;height:100%;background:var(--green);border-radius:3px;"></div></div><span style="font-family:var(--mono);font-size:11px;color:var(--green);">${s.att.toFixed(2)}</span></div></td><td style="padding:8px;"><div style="display:flex;align-items:center;gap:8px;"><div style="width:80px;height:5px;background:var(--card);border-radius:3px;overflow:hidden;"><div style="width:${dw}%;height:100%;background:var(--blue);border-radius:3px;"></div></div><span style="font-family:var(--mono);font-size:11px;color:var(--blue);">${s.def.toFixed(2)}</span></div></td></tr>`;
     }).join('');
-    return `<div class="card" style="margin-bottom:16px;">
-      <h2>${mdl.name} — ${Object.keys(mdl.teams).length} hold · ${mdl.matchCount} kampe</h2>
-      <div style="font-size:12px;color:var(--muted);font-family:var(--mono);margin-bottom:12px;">
-        Hjemmebanefordel: <span style="color:var(--yellow)">${mdl.homeAdv.toFixed(3)}</span> · 
-        Gns. hjemmemål: ${mdl.avgH.toFixed(2)} · Gns. udemål: ${mdl.avgA.toFixed(2)}
-      </div>
-      <table style="width:100%;border-collapse:collapse;">
-        <thead><tr>
-          <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Hold (top 20 angreb)</th>
-          <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Angreb ↑</th>
-          <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Forsvar (lav = stærkt)</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
+    return `<div class="card" style="margin-bottom:16px;"><h2>${mdl.name} — ${Object.keys(mdl.teams).length} hold · ${mdl.matchCount} kampe</h2><div style="font-size:12px;color:var(--muted);font-family:var(--mono);margin-bottom:12px;">Hjemmebanefordel: <span style="color:var(--yellow)">${mdl.homeAdv.toFixed(3)}</span> · Gns. hjemmemål: ${mdl.avgH.toFixed(2)} · Gns. udemål: ${mdl.avgA.toFixed(2)}</div><table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Hold</th><th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Angreb ↑</th><th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Forsvar (lav=stærkt)</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }).join('');
-
-  document.getElementById('modelContent').innerHTML = html;
+  document.getElementById('modelContent').innerHTML=html;
 }
 
 // ── TRACKER ───────────────────────────────────────────
-function renderTracker() {
-  document.getElementById('trackerCount').textContent = trackerBets.length;
-  if(!trackerBets.length){
-    document.getElementById('trackerEmpty').style.display='';
-    document.getElementById('trackerWrap').style.display='none';
-    return;
-  }
-  document.getElementById('trackerEmpty').style.display='none';
-  document.getElementById('trackerWrap').style.display='';
+function renderTracker(){
+  const count=trackerBets.length;
+  document.getElementById('trackerCount').textContent=count;
+  if(!count){document.getElementById('trackerEmpty').style.display='';document.getElementById('trackerWrap').style.display='none';return;}
+  document.getElementById('trackerEmpty').style.display='none';document.getElementById('trackerWrap').style.display='';
   let wins=0,losses=0,ret=0,settledStake=0;
-  const rows = trackerBets.map((b,i)=>{
+  const rows=trackerBets.map((b,i)=>{
     let pl='<span style="color:var(--yellow)">Afventer</span>';
     if(b.result==='win'){wins++;const p=b.stake*b.odds-b.stake;ret+=p;settledStake+=b.stake;pl=`<span style="color:var(--green);font-weight:600">+${p.toFixed(0)} kr.</span>`;}
     else if(b.result==='loss'){losses++;ret-=b.stake;settledStake+=b.stake;pl=`<span style="color:var(--red);font-weight:600">-${b.stake.toFixed(0)} kr.</span>`;}
-    return `<tr>
-      <td>${b.date}</td><td>${b.match}</td><td>${b.market||'–'}</td>
-      <td>${parseFloat(b.odds).toFixed(2)}</td><td>${parseFloat(b.stake).toFixed(0)} kr.</td>
-      <td><span class="badge ${b.type}" style="font-size:10px;">${b.type.toUpperCase()}</span></td>
-      <td><select onchange="updateResult(${i},this.value)" style="font-size:11px;padding:4px 8px;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:4px;">
-        <option value="pending" ${b.result==='pending'?'selected':''}>Afventer</option>
-        <option value="win" ${b.result==='win'?'selected':''}>Vundet ✓</option>
-        <option value="loss" ${b.result==='loss'?'selected':''}>Tabt ✗</option>
-      </select></td>
-      <td>${pl}</td>
-      <td><button class="btn btn-outline" style="padding:3px 8px;font-size:11px;" onclick="deleteBet(${i})">✕</button></td>
-    </tr>`;
+    return `<tr><td>${b.date||'–'}</td><td>${b.match}</td><td>${b.market||'–'}</td><td>${parseFloat(b.odds).toFixed(2)}</td><td>${parseFloat(b.stake).toFixed(0)} kr.</td><td><span class="badge ${b.type}" style="font-size:10px;">${b.type.toUpperCase()}</span></td>
+    <td><select onchange="updateResult('${b.id}',this.value,${i})" style="font-size:11px;padding:4px 8px;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:4px;">
+      <option value="pending" ${b.result==='pending'?'selected':''}>Afventer</option>
+      <option value="win" ${b.result==='win'?'selected':''}>Vundet ✓</option>
+      <option value="loss" ${b.result==='loss'?'selected':''}>Tabt ✗</option>
+    </select></td><td>${pl}</td>
+    <td><button class="btn btn-outline" style="padding:3px 8px;font-size:11px;" onclick="deleteBet('${b.id}',${i})">✕</button></td></tr>`;
   }).join('');
   document.getElementById('trackerBody').innerHTML=rows;
   const roi=settledStake>0?ret/settledStake*100:0;
-  document.getElementById('tTotal').textContent=trackerBets.length;
+  document.getElementById('tTotal').textContent=count;
   document.getElementById('tWins').textContent=wins;
   document.getElementById('tLoss').textContent=losses;
   document.getElementById('tROI').textContent=`${roi>=0?'+':''}${roi.toFixed(1)}%`;
@@ -864,18 +771,41 @@ function renderTracker() {
   document.getElementById('tPL').textContent=`${ret>=0?'+':''}${ret.toFixed(0)} kr.`;
   document.getElementById('tPL').className=`stat-val ${ret>=0?'':'red'}`;
 }
-function toggleLogForm(){ const w=document.getElementById('logFormWrap'); w.style.display=w.style.display?'':'block'; }
-function logBet(){
-  const m=document.getElementById('lMatch').value.trim();
+
+function toggleLogForm(){const w=document.getElementById('logFormWrap');w.style.display=w.style.display?'':'block';}
+
+async function logBet(){
+  const match=document.getElementById('lMatch').value.trim();
   const odds=parseFloat(document.getElementById('lOdds').value);
   const stake=parseFloat(document.getElementById('lStake').value);
-  if(!m||!odds||!stake){alert('Udfyld kamp, odds og indsats.');return;}
-  trackerBets.unshift({match:m,market:document.getElementById('lMarket').value.trim(),odds,stake,type:document.getElementById('lType').value,result:'pending',date:new Date().toLocaleDateString('da-DK')});
-  saveBets();toggleLogForm();renderTracker();
+  if(!match||!odds||!stake){alert('Udfyld kamp, odds og indsats.');return;}
+  const bet={match,market:document.getElementById('lMarket').value.trim(),odds,stake,type:document.getElementById('lType').value,result:'pending',date:new Date().toLocaleDateString('da-DK')};
+  const id=await saveBetToCloud(bet);
+  if(id){
+    bet.id=id;
+    trackerBets.unshift(bet);
+    toggleLogForm();
+    renderTracker();
+    document.getElementById('trackerCount').textContent=trackerBets.length;
+    document.getElementById('syncBadge').textContent=`☁ Sky: ${trackerBets.length} bets`;
+  } else {
+    alert('Kunne ikke gemme i skyen. Tjek din forbindelse.');
+  }
 }
-function updateResult(i,v){trackerBets[i].result=v;saveBets();renderTracker();}
-function deleteBet(i){if(!confirm('Slet?'))return;trackerBets.splice(i,1);saveBets();renderTracker();}
-function saveBets(){localStorage.setItem('oj_bets',JSON.stringify(trackerBets));document.getElementById('trackerCount').textContent=trackerBets.length;}
+
+async function updateResult(id,val,i){
+  trackerBets[i].result=val;
+  await updateBetInCloud(id,val);
+  renderTracker();
+}
+
+async function deleteBet(id,i){
+  if(!confirm('Slet dette bet?'))return;
+  await deleteBetFromCloud(id);
+  trackerBets.splice(i,1);
+  renderTracker();
+}
+
 function showErr(m){const e=document.getElementById('errMsg');e.textContent='⚠ '+m;e.style.display='';}
 function showInfo(m){const e=document.getElementById('infoMsg');e.textContent=m;e.style.display='';}
 </script>
