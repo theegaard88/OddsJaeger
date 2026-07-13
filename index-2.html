@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OddsJæger — Value & Arbitrage Finder</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0F1923; --surface: #16232F; --card: #1C2E3D; --border: #243447;
+    --green: #00FF87; --green-dim: #00C968; --red: #FF4444; --yellow: #FFD166;
+    --blue: #4FC3F7; --text: #E8F0F7; --muted: #6B8299;
+    --mono: 'Roboto Mono', monospace; --sans: 'Inter', sans-serif;
+  }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 16px 24px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--green); }
+  .logo span { color: var(--text); }
+  .api-badge { font-size: 11px; font-family: var(--mono); color: var(--muted); background: var(--card); border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; }
+  .api-badge.connected { color: var(--green); border-color: var(--green); }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  .setup-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 28px; margin-bottom: 16px; }
+  .setup-card h2 { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .setup-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input[type="text"], input[type="number"], select {
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+    font-family: var(--mono); font-size: 13px; padding: 10px 14px; border-radius: 6px; outline: none; transition: border-color 0.2s;
+  }
+  input:focus, select:focus { border-color: var(--green); }
+  input.api-input { flex: 1; min-width: 240px; }
+  .btn { font-family: var(--sans); font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--green); color: #0F1923; }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--green); color: var(--green); }
+  .btn-blue { background: var(--blue); color: #0F1923; }
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; align-items: center; }
+  .filter-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .mode-toggle { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .mode-btn { padding: 8px 16px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--muted); transition: all 0.15s; }
+  .mode-btn.active { background: var(--green); color: #0F1923; }
+  .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .stat-value { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--green); margin-bottom: 4px; }
+  .stat-value.red { color: var(--red); }
+  .stat-value.yellow { color: var(--yellow); }
+  .stat-value.blue { color: var(--blue); }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .count { background: var(--card); border: 1px solid var(--border); color: var(--green); font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+  .bet-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 12px; transition: border-color 0.2s; }
+  .bet-card:hover { border-color: #2d4a63; }
+  .bet-card.arb { border-left: 3px solid var(--green); }
+  .bet-card.value { border-left: 3px solid var(--yellow); }
+  .bet-card.model { border-left: 3px solid var(--blue); }
+  .bet-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .match-name { font-size: 16px; font-weight: 600; }
+  .match-meta { font-size: 12px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .bet-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 4px; font-family: var(--mono); letter-spacing: 0.5px; white-space: nowrap; }
+  .bet-badge.arb { background: rgba(0,255,135,0.15); color: var(--green); border: 1px solid rgba(0,255,135,0.3); }
+  .bet-badge.value { background: rgba(255,209,102,0.12); color: var(--yellow); border: 1px solid rgba(255,209,102,0.3); }
+  .bet-badge.model { background: rgba(79,195,247,0.12); color: var(--blue); border: 1px solid rgba(79,195,247,0.3); }
+  .odds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .odds-item { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; }
+  .odds-item.best-odds { border-color: var(--green); background: rgba(0,255,135,0.05); }
+  .odds-item.model-value { border-color: var(--blue); background: rgba(79,195,247,0.05); }
+  .odds-outcome { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .odds-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .odds-value { font-family: var(--mono); font-size: 20px; font-weight: 700; }
+  .odds-item.best-odds .odds-value { color: var(--green); }
+  .odds-item.model-value .odds-value { color: var(--blue); }
+  .odds-fair { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .odds-bookmaker { font-size: 10px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
+  .value-meter { margin-bottom: 10px; }
+  .meter-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 5px; font-family: var(--mono); }
+  .meter-label span:last-child { color: var(--green); font-weight: 600; }
+  .meter-label span:last-child.yellow { color: var(--yellow); }
+  .meter-label span:last-child.blue { color: var(--blue); }
+  .meter-track { height: 4px; background: var(--card); border-radius: 2px; overflow: hidden; }
+  .meter-fill { height: 100%; background: linear-gradient(90deg, var(--green-dim), var(--green)); border-radius: 2px; transition: width 0.6s ease; }
+  .meter-fill.yellow-fill { background: linear-gradient(90deg, #cc9900, var(--yellow)); }
+  .meter-fill.blue-fill { background: linear-gradient(90deg, #1a7fa0, var(--blue)); }
+  .info-box { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; font-size: 12px; font-family: var(--mono); color: var(--muted); line-height: 1.8; }
+  .info-box .profit { color: var(--green); font-weight: 700; }
+  .info-box .highlight { color: var(--blue); font-weight: 700; }
+  .info-box .warn { color: var(--yellow); font-weight: 700; }
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+  .tab { padding: 10px 20px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .tab.active { color: var(--green); border-bottom-color: var(--green); }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 40px; margin-bottom: 16px; opacity: 0.5; }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+  .loading { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; padding: 40px 0; justify-content: center; }
+  .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-msg { background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); color: #ff8080; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin-bottom: 16px; }
+  .info-msg { background: rgba(79,195,247,0.08); border: 1px solid rgba(79,195,247,0.25); color: var(--blue); border-radius: 6px; padding: 12px 16px; font-size: 13px; margin-bottom: 16px; }
+  .progress-wrap { margin-bottom: 20px; }
+  .progress-label { font-size: 12px; color: var(--muted); font-family: var(--mono); margin-bottom: 6px; }
+  .progress-track { height: 6px; background: var(--card); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--green-dim), var(--green)); border-radius: 3px; transition: width 0.3s ease; }
+  .model-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--muted); margin-bottom: 16px; font-family: var(--mono); }
+  .model-legend span { display: flex; align-items: center; gap: 5px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot.green { background: var(--green); }
+  .dot.yellow { background: var(--yellow); }
+  .dot.blue { background: var(--blue); }
+  .tracker-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tracker-table th { text-align: left; padding: 10px 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); border-bottom: 1px solid var(--border); font-family: var(--mono); }
+  .tracker-table td { padding: 12px 12px; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 12px; }
+  .tracker-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .result-win { color: var(--green); font-weight: 600; }
+  .result-loss { color: var(--red); font-weight: 600; }
+  .log-form { display: flex; gap: 8px; flex-wrap: wrap; }
+  .log-form input, .log-form select { font-size: 12px; padding: 7px 10px; }
+  .model-status { display: flex; align-items: center; gap: 8px; font-size: 12px; font-family: var(--mono); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .status-dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.loading { background: var(--yellow); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  @media (max-width: 600px) {
+    .odds-grid { grid-template-columns: repeat(3, 1fr); }
+    header { padding: 12px 16px; }
+    .logo { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">Odds<span>Jæger</span></div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="model-status">
+      <div class="status-dot" id="modelDot"></div>
+      <span id="modelStatus" style="color:var(--muted);">Model: ikke trænet</span>
+    </div>
+    <div class="api-badge" id="apiBadge">⬤ Ikke forbundet</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- API SETUP -->
+  <div class="setup-card">
+    <h2>The Odds API — Opsætning</h2>
+    <div class="setup-row">
+      <input type="text" class="api-input" id="apiKey" placeholder="API-nøgle fra theoddsapi.com..." />
+      <select id="regionSelect">
+        <option value="eu">Europa (EU)</option>
+        <option value="uk">England (UK)</option>
+      </select>
+      <button class="btn btn-primary" id="fetchBtn" onclick="fetchOdds()">🔍 Hent odds</button>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--muted);">
+      Gratis nøgle på <a href="https://theoddsapi.com" target="_blank" style="color:var(--green);">theoddsapi.com</a> — 500 requests/måned
+    </div>
+  </div>
+
+  <!-- MODEL SETUP -->
+  <div class="setup-card">
+    <h2>⚽ Dixon-Coles Model — Træning på historisk xG-data</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;">
+      Modellen henter kampdata fra Understat (gratis) for de seneste 3 sæsoner og beregner angreb- og forsvarsratings for hvert hold. Nylige kampe vægtes højere (eksponentielt forfald). Understøttede ligaer: Premier League, La Liga, Bundesliga, Serie A, Ligue 1. Superligaen hentes fra football-data.co.uk.
+    </p>
+    <div class="setup-row" style="margin-bottom:12px;">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.8px;">Ligaer</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:5px;"><input type="checkbox" id="lg_epl" checked> Premier League</label>
+          <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:5px;"><input type="checkbox" id="lg_la_liga" checked> La Liga</label>
+          <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:5px;"><input type="checkbox" id="lg_bundesliga" checked> Bundesliga</label>
+          <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:5px;"><input type="checkbox" id="lg_serie_a" checked> Serie A</label>
+          <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:5px;"><input type="checkbox" id="lg_ligue_1" checked> Ligue 1</label>
+          <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:5px;"><input type="checkbox" id="lg_superliga" checked> Superliga 🇩🇰</label>
+        </div>
+      </div>
+    </div>
+    <div class="setup-row">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.8px;">Vægtning af nylige kampe</div>
+        <select id="decayRate">
+          <option value="0.003">Moderat (6 mdr. half-life)</option>
+          <option value="0.005" selected>Høj (3-4 mdr. half-life) — anbefalet</option>
+          <option value="0.008">Meget høj (2 mdr. half-life)</option>
+        </select>
+      </div>
+      <div style="align-self:flex-end;">
+        <button class="btn btn-blue" onclick="trainModel()" id="trainBtn">🧠 Træn model</button>
+      </div>
+    </div>
+    <div id="trainProgress" style="display:none;margin-top:16px;">
+      <div class="progress-label" id="trainLabel">Henter data...</div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters">
+    <span class="filter-label">Vis:</span>
+    <div class="mode-toggle">
+      <button class="mode-btn active" onclick="setMode('all',this)">Alle</button>
+      <button class="mode-btn" onclick="setMode('arb',this)">Arbitrage</button>
+      <button class="mode-btn" onclick="setMode('value',this)">Value</button>
+      <button class="mode-btn" onclick="setMode('model',this)">Model 🧠</button>
+    </div>
+    <span class="filter-label">Min. value:</span>
+    <input type="number" id="minValue" value="3" min="0" max="30" style="width:65px;">
+    <span style="font-size:12px;color:var(--muted);">%</span>
+    <span class="filter-label">Bankroll:</span>
+    <input type="number" id="bankroll" value="10000" style="width:95px;">
+    <span style="font-size:12px;color:var(--muted);">kr.</span>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-bar" id="statsBar" style="display:none;">
+    <div class="stat-item"><div class="stat-value" id="statArb">0</div><div class="stat-label">Arbitrage</div></div>
+    <div class="stat-item"><div class="stat-value yellow" id="statValue">0</div><div class="stat-label">Value bets</div></div>
+    <div class="stat-item"><div class="stat-value blue" id="statModel">0</div><div class="stat-label">Model bets</div></div>
+    <div class="stat-item"><div class="stat-value" id="statMatches">0</div><div class="stat-label">Kampe</div></div>
+    <div class="stat-item"><div class="stat-value" id="statBestArb">–</div><div class="stat-label">Bedste arb</div></div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('finder',this)">🎯 Finder</div>
+    <div class="tab" onclick="showTab('model',this)">🧠 Model</div>
+    <div class="tab" onclick="showTab('tracker',this)">📊 Tracker</div>
+  </div>
+
+  <!-- FINDER TAB -->
+  <div id="tab-finder">
+    <div id="errorMsg" class="error-msg" style="display:none;"></div>
+    <div id="infoMsg" class="info-msg" style="display:none;"></div>
+    <div id="resultsArea">
+      <div class="empty-state">
+        <div class="icon">⚽</div>
+        <p>Indsæt din API-nøgle og tryk "Hent odds"<br>Træn modellen for at se model-baserede value bets.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODEL TAB -->
+  <div id="tab-model" style="display:none;">
+    <div class="empty-state" id="modelEmpty">
+      <div class="icon">🧠</div>
+      <p>Modellen er ikke trænet endnu.<br>Tryk "Træn model" ovenfor for at starte.</p>
+    </div>
+    <div id="modelResults" style="display:none;">
+      <div class="model-legend">
+        <span><div class="dot green"></div> Stærk angrebs-rating</span>
+        <span><div class="dot blue"></div> Stærkt forsvar</span>
+        <span><div class="dot yellow"></div> Hjemmebanefordel</span>
+      </div>
+      <div id="modelLeagueCards"></div>
+    </div>
+  </div>
+
+  <!-- TRACKER TAB -->
+  <div id="tab-tracker" style="display:none;">
+    <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div class="section-title">Dine bets <span class="count" id="trackerCount">0</span></div>
+      <button class="btn btn-outline" onclick="showLogForm()">+ Log bet manuelt</button>
+    </div>
+    <div id="logFormArea" style="display:none;margin-bottom:16px;">
+      <div class="setup-card">
+        <h2>Log bet</h2>
+        <div class="log-form">
+          <input type="text" id="logMatch" placeholder="Kamp" style="min-width:180px;">
+          <input type="text" id="logMarket" placeholder="Marked" style="min-width:140px;">
+          <input type="number" id="logOdds" placeholder="Odds" step="0.01" style="width:80px;">
+          <input type="number" id="logStake" placeholder="Indsats (kr.)" style="width:110px;">
+          <select id="logType">
+            <option value="value">Value bet</option>
+            <option value="arb">Arbitrage</option>
+            <option value="model">Model bet</option>
+          </select>
+          <button class="btn btn-primary" onclick="logBet()">Gem</button>
+          <button class="btn btn-outline" onclick="hideLogForm()">Annuller</button>
+        </div>
+      </div>
+    </div>
+    <div id="trackerEmpty" class="empty-state">
+      <div class="icon">📋</div>
+      <p>Ingen bets logget endnu.</p>
+    </div>
+    <div id="trackerTableWrap" style="display:none;">
+      <div class="stats-bar" style="margin-bottom:20px;">
+        <div class="stat-item"><div class="stat-value" id="tStatTotal">0</div><div class="stat-label">Bets i alt</div></div>
+        <div class="stat-item"><div class="stat-value" id="tStatWins">0</div><div class="stat-label">Vundet</div></div>
+        <div class="stat-item"><div class="stat-value red" id="tStatLoss">0</div><div class="stat-label">Tabt</div></div>
+        <div class="stat-item"><div class="stat-value" id="tStatROI">0%</div><div class="stat-label">ROI</div></div>
+        <div class="stat-item"><div class="stat-value" id="tStatPL">0 kr.</div><div class="stat-label">Profit/Tab</div></div>
+      </div>
+      <table class="tracker-table">
+        <thead><tr><th>Dato</th><th>Kamp</th><th>Marked</th><th>Odds</th><th>Indsats</th><th>Type</th><th>Resultat</th><th>P/L</th><th></th></tr></thead>
+        <tbody id="trackerBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── GLOBAL STATE ─────────────────────────────────────
+let allBets = [];
+let currentMode = 'all';
+let modelData = {}; // { leagueName: { teams: {name: {attack, defense}}, homeAdv, matches: [] } }
+let trackerBets = JSON.parse(localStorage.getItem('oddsjager_bets') || '[]');
+const savedKey = localStorage.getItem('oddsjager_apikey');
+if (savedKey) document.getElementById('apiKey').value = savedKey;
+
+// ─── TABS ─────────────────────────────────────────────
+function showTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['finder','model','tracker'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === name ? '' : 'none';
+  });
+  if (name === 'tracker') renderTracker();
+  if (name === 'model') renderModelTab();
+}
+
+function setMode(mode, el) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderResults(allBets);
+}
+
+// ─── UNDERSTAT DATA FETCHER ───────────────────────────
+const LEAGUES = {
+  epl:        { name: 'Premier League',  understat: 'EPL',        fdco: null },
+  la_liga:    { name: 'La Liga',         understat: 'La_liga',    fdco: null },
+  bundesliga: { name: 'Bundesliga',      understat: 'Bundesliga', fdco: null },
+  serie_a:    { name: 'Serie A',         understat: 'Serie_A',    fdco: null },
+  ligue_1:    { name: 'Ligue 1',         understat: 'Ligue_1',    fdco: null },
+  superliga:  { name: 'Superliga 🇩🇰',  understat: null,         fdco: 'DNK' },
+};
+
+const SEASONS = ['2022', '2023', '2024'];
+
+async function fetchUnderstatLeague(league, season) {
+  // Understat embeds JSON data in script tags — we use a CORS proxy
+  const url = `https://understat.com/league/${league}/${season}`;
+  const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+  try {
+    const res = await fetch(proxy);
+    const data = await res.json();
+    const html = data.contents;
+    // Extract datesData from script tag
+    const match = html.match(/datesData\s*=\s*JSON\.parse\s*\(\s*'([^']+)'\s*\)/);
+    if (!match) return [];
+    const decoded = match[1].replace(/\\x([0-9A-Fa-f]{2})/g, (m, h) => String.fromCharCode(parseInt(h, 16)));
+    const matches = JSON.parse(decoded);
+    return matches.filter(m => m.isResult);
+  } catch(e) {
+    return [];
+  }
+}
+
+async function fetchFdcoSuperliga(season) {
+  // football-data.co.uk has Danish Superliga
+  // season format: 2223 for 2022/23
+  const yr = season.slice(2) + String(parseInt(season.slice(2)) + 1).slice(-2);
+  const url = `https://www.football-data.co.uk/mmz4281/${yr}/DNK.csv`;
+  const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+  try {
+    const res = await fetch(proxy);
+    const data = await res.json();
+    const csv = data.contents;
+    return parseFdcoCsv(csv);
+  } catch(e) { return []; }
+}
+
+function parseFdcoCsv(csv) {
+  const lines = csv.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,''));
+  const matches = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',').map(c => c.trim().replace(/"/g,''));
+    const obj = {};
+    headers.forEach((h,j) => obj[h] = cols[j]);
+    if (!obj.HomeTeam || !obj.FTR) continue;
+    // Parse date
+    const parts = (obj.Date || '').split('/');
+    let date;
+    if (parts.length === 3) {
+      const yr = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+      date = new Date(`${yr}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`);
+    } else {
+      date = new Date();
+    }
+    matches.push({
+      h: obj.HomeTeam, a: obj.AwayTeam,
+      hg: parseFloat(obj.FTHG) || 0, ag: parseFloat(obj.FTAG) || 0,
+      // FDCO doesn't have xG natively, use actual goals as proxy
+      hxg: parseFloat(obj.FTHG) || 0, axg: parseFloat(obj.FTAG) || 0,
+      date: date, isResult: true
+    });
+  }
+  return matches;
+}
+
+// ─── DIXON-COLES MODEL ────────────────────────────────
+function dixonColesWeight(matchDate, decayRate) {
+  const now = new Date();
+  const daysDiff = (now - matchDate) / (1000 * 60 * 60 * 24);
+  return Math.exp(-decayRate * daysDiff);
+}
+
+function trainDixonColes(matches, decayRate) {
+  // Collect all teams
+  const teams = {};
+  matches.forEach(m => {
+    if (!teams[m.h]) teams[m.h] = { attack: 1.0, defense: 1.0, games: 0 };
+    if (!teams[m.a]) teams[m.a] = { attack: 1.0, defense: 1.0, games: 0 };
+  });
+
+  const teamNames = Object.keys(teams);
+  if (teamNames.length < 2) return { teams: {}, homeAdv: 1.25 };
+
+  // Compute weighted average goals
+  let totalWeight = 0, totalHomeXG = 0, totalAwayXG = 0;
+  matches.forEach(m => {
+    const w = dixonColesWeight(m.date, decayRate);
+    totalWeight += w;
+    totalHomeXG += m.hxg * w;
+    totalAwayXG += m.axg * w;
+  });
+  const avgHomeXG = totalWeight > 0 ? totalHomeXG / totalWeight : 1.5;
+  const avgAwayXG = totalWeight > 0 ? totalAwayXG / totalWeight : 1.1;
+  const homeAdv = avgAwayXG > 0 ? avgHomeXG / avgAwayXG : 1.25;
+
+  // Iterative estimation of attack/defense ratings
+  for (let iter = 0; iter < 50; iter++) {
+    // Reset accumulators
+    const attNum = {}, attDen = {}, defNum = {}, defDen = {};
+    teamNames.forEach(t => { attNum[t]=0; attDen[t]=0; defNum[t]=0; defDen[t]=0; });
+
+    matches.forEach(m => {
+      const w = dixonColesWeight(m.date, decayRate);
+      const ht = teams[m.h], at = teams[m.a];
+      const lambdaH = ht.attack * at.defense * homeAdv * avgAwayXG;
+      const lambdaA = at.attack * ht.defense * avgAwayXG;
+
+      // Attack updates
+      attNum[m.h] += w * m.hxg;
+      attDen[m.h] += w * at.defense * homeAdv * avgAwayXG;
+      attNum[m.a] += w * m.axg;
+      attDen[m.a] += w * ht.defense * avgAwayXG;
+
+      // Defense updates
+      defNum[m.h] += w * m.axg;
+      defDen[m.h] += w * at.attack * avgAwayXG;
+      defNum[m.a] += w * m.hxg;
+      defDen[m.a] += w * ht.attack * homeAdv * avgAwayXG;
+    });
+
+    teamNames.forEach(t => {
+      if (attDen[t] > 0) teams[t].attack = attNum[t] / attDen[t];
+      if (defDen[t] > 0) teams[t].defense = defNum[t] / defDen[t];
+    });
+
+    // Normalize so average attack = 1
+    const avgAtt = teamNames.reduce((s,t) => s + teams[t].attack, 0) / teamNames.length;
+    const avgDef = teamNames.reduce((s,t) => s + teams[t].defense, 0) / teamNames.length;
+    teamNames.forEach(t => {
+      teams[t].attack /= avgAtt;
+      teams[t].defense /= avgDef;
+    });
+  }
+
+  return { teams, homeAdv, avgAwayXG, avgHomeXG };
+}
+
+function poissonProb(lambda, k) {
+  let prob = Math.exp(-lambda);
+  for (let i = 0; i < k; i++) prob *= lambda / (i + 1);
+  return prob;
+}
+
+function tauCorrection(hg, ag, lambdaH, lambdaA, rho) {
+  if (hg === 0 && ag === 0) return 1 - lambdaH * lambdaA * rho;
+  if (hg === 0 && ag === 1) return 1 + lambdaH * rho;
+  if (hg === 1 && ag === 0) return 1 + lambdaA * rho;
+  if (hg === 1 && ag === 1) return 1 - rho;
+  return 1;
+}
+
+function predictMatch(homeTeam, awayTeam, leagueKey) {
+  const model = modelData[leagueKey];
+  if (!model || !model.teams[homeTeam] || !model.teams[awayTeam]) return null;
+
+  const ht = model.teams[homeTeam];
+  const at = model.teams[awayTeam];
+  const rho = -0.13; // Dixon-Coles low-score correction
+
+  const lambdaH = ht.attack * at.defense * model.homeAdv * model.avgAwayXG;
+  const lambdaA = at.attack * ht.defense * model.avgAwayXG;
+
+  let pHome = 0, pDraw = 0, pAway = 0;
+  const maxGoals = 8;
+
+  for (let hg = 0; hg <= maxGoals; hg++) {
+    for (let ag = 0; ag <= maxGoals; ag++) {
+      const p = poissonProb(lambdaH, hg) * poissonProb(lambdaA, ag) * tauCorrection(hg, ag, lambdaH, lambdaA, rho);
+      if (hg > ag) pHome += p;
+      else if (hg === ag) pDraw += p;
+      else pAway += p;
+    }
+  }
+
+  const total = pHome + pDraw + pAway;
+  pHome /= total; pDraw /= total; pAway /= total;
+
+  return {
+    pHome, pDraw, pAway,
+    fairHome: 1 / pHome,
+    fairDraw: 1 / pDraw,
+    fairAway: 1 / pAway,
+    lambdaH, lambdaA
+  };
+}
+
+// ─── TRAIN MODEL ──────────────────────────────────────
+async function trainModel() {
+  const btn = document.getElementById('trainBtn');
+  const dot = document.getElementById('modelDot');
+  const status = document.getElementById('modelStatus');
+  const progressWrap = document.getElementById('trainProgress');
+  const progressFill = document.getElementById('progressFill');
+  const trainLabel = document.getElementById('trainLabel');
+  const decayRate = parseFloat(document.getElementById('decayRate').value);
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Træner...';
+  dot.className = 'status-dot loading';
+  status.textContent = 'Model: henter data...';
+  progressWrap.style.display = '';
+  modelData = {};
+
+  const selectedLeagues = Object.keys(LEAGUES).filter(k => document.getElementById('lg_' + k)?.checked);
+  const totalSteps = selectedLeagues.length * SEASONS.length;
+  let step = 0;
+
+  for (const leagueKey of selectedLeagues) {
+    const league = LEAGUES[leagueKey];
+    let allMatches = [];
+
+    for (const season of SEASONS) {
+      step++;
+      const pct = Math.round((step / totalSteps) * 100);
+      progressFill.style.width = pct + '%';
+      trainLabel.textContent = `Henter ${league.name} ${season}/${parseInt(season)+1}... (${pct}%)`;
+
+      let matches = [];
+      if (league.understat) {
+        const raw = await fetchUnderstatLeague(league.understat, season);
+        matches = raw.map(m => ({
+          h: m.h?.title || m.h, a: m.a?.title || m.a,
+          hg: parseInt(m.goals?.h) || 0, ag: parseInt(m.goals?.a) || 0,
+          hxg: parseFloat(m.xG?.h) || parseFloat(m.goals?.h) || 0,
+          axg: parseFloat(m.xG?.a) || parseFloat(m.goals?.a) || 0,
+          date: new Date(m.datetime || m.date || Date.now()),
+          isResult: m.isResult
+        })).filter(m => m.isResult && m.h && m.a);
+      } else if (league.fdco) {
+        matches = await fetchFdcoSuperliga(season);
+      }
+      allMatches = allMatches.concat(matches);
+
+      // Small delay to avoid rate limiting
+      await new Promise(r => setTimeout(r, 400));
+    }
+
+    if (allMatches.length > 0) {
+      const model = trainDixonColes(allMatches, decayRate);
+      model.leagueName = league.name;
+      model.matchCount = allMatches.length;
+      modelData[leagueKey] = model;
+    }
+  }
+
+  const teamCount = Object.values(modelData).reduce((s, m) => s + Object.keys(m.teams).length, 0);
+  const leagueCount = Object.keys(modelData).length;
+
+  dot.className = 'status-dot active';
+  status.textContent = `Model: ${teamCount} hold, ${leagueCount} ligaer`;
+  btn.disabled = false;
+  btn.textContent = '🧠 Genoptræn model';
+  progressWrap.style.display = 'none';
+
+  // Save to localStorage (compressed)
+  try {
+    localStorage.setItem('oddsjager_model', JSON.stringify({ modelData, trainedAt: new Date().toISOString() }));
+  } catch(e) {}
+
+  // Re-render if we have odds data
+  if (allBets.length > 0) renderResults(allBets);
+  renderModelTab();
+}
+
+// Load model from storage on page load
+try {
+  const saved = localStorage.getItem('oddsjager_model');
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    modelData = parsed.modelData || {};
+    const teamCount = Object.values(modelData).reduce((s,m) => s + Object.keys(m.teams).length, 0);
+    const leagueCount = Object.keys(modelData).length;
+    if (teamCount > 0) {
+      document.getElementById('modelDot').className = 'status-dot active';
+      document.getElementById('modelStatus').textContent = `Model: ${teamCount} hold (gemt)`;
+    }
+  }
+} catch(e) {}
+
+// ─── FETCH ODDS ───────────────────────────────────────
+async function fetchOdds() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key) { showError('Indtast venligst en API-nøgle.'); return; }
+  localStorage.setItem('oddsjager_apikey', key);
+
+  const region = document.getElementById('regionSelect').value;
+  document.getElementById('fetchBtn').disabled = true;
+  document.getElementById('resultsArea').innerHTML = '<div class="loading"><div class="spinner"></div>Henter odds...</div>';
+  document.getElementById('errorMsg').style.display = 'none';
+  document.getElementById('infoMsg').style.display = 'none';
+  document.getElementById('statsBar').style.display = 'none';
+
+  try {
+    const sportsRes = await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${key}`);
+    if (!sportsRes.ok) throw new Error('Ugyldig API-nøgle eller forbindelsesfejl.');
+    const sports = await sportsRes.json();
+    const footballSports = sports.filter(s => s.group === 'Soccer' && s.active).map(s => s.key);
+
+    let allMatches = [];
+    const batchSize = 5;
+    for (let i = 0; i < Math.min(footballSports.length, 20); i += batchSize) {
+      const batch = footballSports.slice(i, i + batchSize);
+      const results = await Promise.all(batch.map(sport =>
+        fetch(`https://api.the-odds-api.com/v4/sports/${sport}/odds/?apiKey=${key}&regions=${region}&markets=h2h&oddsFormat=decimal`)
+          .then(r => r.ok ? r.json() : []).catch(() => [])
+      ));
+      results.forEach(r => { if (Array.isArray(r)) allMatches = allMatches.concat(r); });
+    }
+
+    document.getElementById('apiBadge').textContent = '⬤ Forbundet';
+    document.getElementById('apiBadge').className = 'api-badge connected';
+
+    allBets = analyzeMatches(allMatches);
+    document.getElementById('statsBar').style.display = 'grid';
+    renderResults(allBets);
+
+    const modelActive = Object.keys(modelData).length > 0;
+    if (!modelActive) {
+      showInfo('💡 Tip: Træn modellen ovenfor for at se model-baserede value bets baseret på xG-data.');
+    }
+
+  } catch(err) {
+    showError(err.message || 'Ukendt fejl.');
+    document.getElementById('resultsArea').innerHTML = '';
+  }
+  document.getElementById('fetchBtn').disabled = false;
+}
+
+// ─── MAP ODDS SPORT KEY TO MODEL LEAGUE KEY ───────────
+function getLeagueKeyFromSport(sportKey) {
+  if (sportKey.includes('premier_league') || sportKey === 'soccer_epl') return 'epl';
+  if (sportKey.includes('la_liga') || sportKey.includes('spain')) return 'la_liga';
+  if (sportKey.includes('bundesliga') || sportKey.includes('germany')) return 'bundesliga';
+  if (sportKey.includes('serie_a') || sportKey.includes('italy')) return 'serie_a';
+  if (sportKey.includes('ligue_1') || sportKey.includes('france')) return 'ligue_1';
+  if (sportKey.includes('denmark') || sportKey.includes('danish') || sportKey.includes('superliga')) return 'superliga';
+  return null;
+}
+
+function fuzzyTeamMatch(oddsName, modelTeams) {
+  if (modelTeams[oddsName]) return oddsName;
+  const lower = oddsName.toLowerCase();
+  return Object.keys(modelTeams).find(t => {
+    const tl = t.toLowerCase();
+    return tl === lower || tl.includes(lower) || lower.includes(tl) ||
+      tl.replace(/\s/g,'') === lower.replace(/\s/g,'');
+  }) || null;
+}
+
+// ─── ANALYZE MATCHES ──────────────────────────────────
+function analyzeMatches(matches) {
+  const minValue = parseFloat(document.getElementById('minValue').value) || 3;
+  const findings = [];
+
+  matches.forEach(match => {
+    if (!match.bookmakers || match.bookmakers.length < 3) return;
+
+    const outcomes = {};
+    const allPrices = {};
+
+    match.bookmakers.forEach(bm => {
+      bm.markets?.forEach(mkt => {
+        if (mkt.key !== 'h2h') return;
+        mkt.outcomes?.forEach(o => {
+          if (!allPrices[o.name]) allPrices[o.name] = [];
+          allPrices[o.name].push(o.price);
+          if (!outcomes[o.name] || o.price > outcomes[o.name].price)
+            outcomes[o.name] = { price: o.price, bookmaker: bm.title };
+        });
+      });
+    });
+
+    const names = Object.keys(outcomes);
+    if (names.length < 2) return;
+
+    const fairOdds = {};
+    names.forEach(n => {
+      const prices = allPrices[n];
+      fairOdds[n] = prices.length ? prices.reduce((a,b) => a+b,0) / prices.length : 0;
+    });
+
+    const impliedSum = names.reduce((s,n) => s + 1/outcomes[n].price, 0);
+    const arbProfit = ((1/impliedSum) - 1) * 100;
+
+    const valueOdds = names.map(n => {
+      const best = outcomes[n].price;
+      const fair = fairOdds[n];
+      const valuePct = fair > 0 ? ((best - fair) / fair) * 100 : 0;
+      return { name: n, best, bookmaker: outcomes[n].bookmaker, fair, value: valuePct };
+    }).filter(v => v.value >= minValue);
+
+    // Model prediction
+    let modelPred = null;
+    const leagueKey = getLeagueKeyFromSport(match.sport_key);
+    if (leagueKey && modelData[leagueKey]) {
+      const model = modelData[leagueKey];
+      const hTeam = fuzzyTeamMatch(match.home_team, model.teams);
+      const aTeam = fuzzyTeamMatch(match.away_team, model.teams);
+      if (hTeam && aTeam) {
+        modelPred = predictMatch(hTeam, aTeam, leagueKey);
+        if (modelPred) {
+          // Find model value bets
+          modelPred.modelValueBets = [];
+          names.forEach(n => {
+            const bestOdds = outcomes[n].price;
+            let fairFromModel;
+            if (n === match.home_team || n.toLowerCase().includes(match.home_team.toLowerCase().split(' ')[0])) {
+              fairFromModel = modelPred.fairHome;
+            } else if (n.toLowerCase().includes('draw') || n === 'Draw') {
+              fairFromModel = modelPred.fairDraw;
+            } else {
+              fairFromModel = modelPred.fairAway;
+            }
+            const modelValue = fairFromModel > 0 ? ((bestOdds - fairFromModel) / fairFromModel) * 100 : 0;
+            if (modelValue >= minValue) {
+              modelPred.modelValueBets.push({ name: n, best: bestOdds, fairFromModel, modelValue, bookmaker: outcomes[n].bookmaker });
+            }
+          });
+        }
+      }
+    }
+
+    const isArb = arbProfit > 0.5;
+    const hasValue = valueOdds.length > 0;
+    const hasModelValue = modelPred && modelPred.modelValueBets && modelPred.modelValueBets.length > 0;
+
+    if (!isArb && !hasValue && !hasModelValue) return;
+
+    findings.push({
+      id: match.id, homeTeam: match.home_team, awayTeam: match.away_team,
+      sport: match.sport_key, commence: match.commence_time,
+      outcomes, fairOdds, allPrices, arbProfit, valueOdds,
+      isArb, hasValue, hasModelValue, modelPred,
+      bookmakerCount: match.bookmakers.length, leagueKey
+    });
+  });
+
+  findings.sort((a,b) => {
+    if (a.isArb && !b.isArb) return -1;
+    if (!a.isArb && b.isArb) return 1;
+    return 0;
+  });
+
+  return findings;
+}
+
+// ─── RENDER RESULTS ───────────────────────────────────
+function renderResults(bets) {
+  const filtered = bets.filter(b => {
+    if (currentMode === 'arb') return b.isArb;
+    if (currentMode === 'value') return b.hasValue;
+    if (currentMode === 'model') return b.hasModelValue;
+    return true;
+  });
+
+  const bankroll = parseFloat(document.getElementById('bankroll').value) || 10000;
+  const stake = bankroll * 0.02;
+  const arbBets = bets.filter(b => b.isArb);
+  const valueBets = bets.filter(b => b.hasValue && !b.isArb);
+  const modelBets = bets.filter(b => b.hasModelValue);
+  const bestArb = arbBets.length ? Math.max(...arbBets.map(b => b.arbProfit)) : 0;
+
+  document.getElementById('statArb').textContent = arbBets.length;
+  document.getElementById('statValue').textContent = valueBets.length;
+  document.getElementById('statModel').textContent = modelBets.length;
+  document.getElementById('statMatches').textContent = bets.length;
+  document.getElementById('statBestArb').textContent = bestArb > 0 ? `+${bestArb.toFixed(2)}%` : '–';
+
+  if (!filtered.length) {
+    document.getElementById('resultsArea').innerHTML = `
+      <div class="empty-state"><div class="icon">🔎</div>
+      <p>Ingen resultater med de nuværende filtre.<br>Prøv at sænke minimum value % eller skift filteret.</p></div>`;
+    return;
+  }
+
+  const html = filtered.map(b => {
+    const date = new Date(b.commence);
+    const dateStr = date.toLocaleDateString('da-DK', {weekday:'short',day:'numeric',month:'short'});
+    const timeStr = date.toLocaleTimeString('da-DK', {hour:'2-digit',minute:'2-digit'});
+    const league = b.sport.replace('soccer_','').replace(/_/g,' ').toUpperCase();
+    const names = Object.keys(b.outcomes);
+
+    const oddsHtml = names.map(n => {
+      const o = b.outcomes[n];
+      const isValOut = b.valueOdds.some(v => v.name === n);
+      const isModelVal = b.modelPred?.modelValueBets?.some(v => v.name === n);
+      let cls = '';
+      if (isValOut) cls = 'best-odds';
+      else if (isModelVal) cls = 'model-value';
+      const fairMarket = b.fairOdds[n] ? `<div class="odds-fair">mkt: ${b.fairOdds[n].toFixed(2)}</div>` : '';
+      const fairModel = b.modelPred ? (() => {
+        if (n === b.homeTeam) return `<div class="odds-fair" style="color:var(--blue)">mdl: ${b.modelPred.fairHome.toFixed(2)}</div>`;
+        if (n === 'Draw') return `<div class="odds-fair" style="color:var(--blue)">mdl: ${b.modelPred.fairDraw.toFixed(2)}</div>`;
+        return `<div class="odds-fair" style="color:var(--blue)">mdl: ${b.modelPred.fairAway.toFixed(2)}</div>`;
+      })() : '';
+      return `<div class="odds-item ${cls}">
+        <div class="odds-outcome">${n === b.homeTeam ? '🏠 Hjemme' : n === 'Draw' ? '🤝 Uafgjort' : '✈️ Ude'}</div>
+        <div class="odds-row"><span class="odds-value">${o.price.toFixed(2)}</span></div>
+        ${fairMarket}${fairModel}
+        <div class="odds-bookmaker">${o.bookmaker}</div>
+      </div>`;
+    }).join('');
+
+    let extraHtml = '';
+
+    if (b.isArb) {
+      const impliedSum = names.reduce((s,n) => s + 1/b.outcomes[n].price, 0);
+      const stakes = names.map(n => ({ name: n, stake: (stake/impliedSum)*(1/b.outcomes[n].price), bm: b.outcomes[n].bookmaker }));
+      const profit = stake/impliedSum - stake;
+      const meterW = Math.min(b.arbProfit*10, 100);
+      extraHtml += `<div class="value-meter">
+        <div class="meter-label"><span>Arbitrage profit</span><span>+${b.arbProfit.toFixed(2)}%</span></div>
+        <div class="meter-track"><div class="meter-fill" style="width:${meterW}%"></div></div>
+      </div>
+      <div class="info-box">${stakes.map(s=>`Indsæt <strong>${s.stake.toFixed(0)} kr.</strong> på "${s.name}" hos ${s.bm}`).join('<br>')}
+        <br>→ Garanteret profit: <span class="profit">+${profit.toFixed(0)} kr. (+${b.arbProfit.toFixed(2)}%)</span></div>`;
+    }
+
+    if (b.hasValue && !b.isArb) {
+      const topVal = Math.max(...b.valueOdds.map(v=>v.value));
+      const best = b.valueOdds.find(v=>v.value===topVal);
+      const meterW = Math.min(topVal*4, 100);
+      extraHtml += `<div class="value-meter">
+        <div class="meter-label"><span>Market value</span><span class="yellow">+${topVal.toFixed(1)}%</span></div>
+        <div class="meter-track"><div class="meter-fill yellow-fill" style="width:${meterW}%"></div></div>
+      </div>
+      <div class="info-box">Market value: <strong>"${best.name}"</strong> @ <strong>${best.best.toFixed(2)}</strong> (mkt fair: ${best.fair.toFixed(2)}) — <span class="highlight">${best.bookmaker}</span><br>
+        Anbefalet indsats (2% bankroll): <span class="profit">${stake.toFixed(0)} kr.</span></div>`;
+    }
+
+    if (b.hasModelValue && b.modelPred) {
+      const best = b.modelPred.modelValueBets[0];
+      const meterW = Math.min(best.modelValue*4, 100);
+      extraHtml += `<div class="value-meter" style="margin-top:8px;">
+        <div class="meter-label"><span>Model value (xG Dixon-Coles)</span><span class="blue">+${best.modelValue.toFixed(1)}%</span></div>
+        <div class="meter-track"><div class="meter-fill blue-fill" style="width:${meterW}%"></div></div>
+      </div>
+      <div class="info-box">xG-model: <span class="highlight">"${best.name}"</span> @ <strong>${best.best.toFixed(2)}</strong> (model fair: ${best.fairFromModel.toFixed(2)}) — ${best.bookmaker}<br>
+        Model sandsynligheder: 🏠 ${(b.modelPred.pHome*100).toFixed(1)}% · 🤝 ${(b.modelPred.pDraw*100).toFixed(1)}% · ✈️ ${(b.modelPred.pAway*100).toFixed(1)}%<br>
+        Forventet mål: Hjemme ${b.modelPred.lambdaH.toFixed(2)} — Ude ${b.modelPred.lambdaA.toFixed(2)}</div>`;
+    }
+
+    const badges = [];
+    if (b.isArb) badges.push(`<span class="bet-badge arb">ARB +${b.arbProfit.toFixed(2)}%</span>`);
+    if (b.hasValue && !b.isArb) badges.push(`<span class="bet-badge value">VALUE +${Math.max(...b.valueOdds.map(v=>v.value)).toFixed(1)}%</span>`);
+    if (b.hasModelValue) badges.push(`<span class="bet-badge model">MODEL 🧠</span>`);
+
+    const cardCls = b.isArb ? 'arb' : b.hasModelValue ? 'model' : 'value';
+    return `<div class="bet-card ${cardCls}">
+      <div class="bet-top">
+        <div>
+          <div class="match-name">${b.homeTeam} vs ${b.awayTeam}</div>
+          <div class="match-meta">${league} · ${dateStr} ${timeStr} · ${b.bookmakerCount} bookmakers</div>
+        </div>
+        <div class="badges">${badges.join('')}</div>
+      </div>
+      <div class="odds-grid">${oddsHtml}</div>
+      ${extraHtml}
+    </div>`;
+  }).join('');
+
+  document.getElementById('resultsArea').innerHTML = `
+    <div class="section-title">Resultater <span class="count">${filtered.length}</span></div>
+    ${html}`;
+}
+
+// ─── MODEL TAB ────────────────────────────────────────
+function renderModelTab() {
+  if (!Object.keys(modelData).length) {
+    document.getElementById('modelEmpty').style.display = '';
+    document.getElementById('modelResults').style.display = 'none';
+    return;
+  }
+  document.getElementById('modelEmpty').style.display = 'none';
+  document.getElementById('modelResults').style.display = '';
+
+  const html = Object.entries(modelData).map(([key, model]) => {
+    const teams = Object.entries(model.teams)
+      .sort((a,b) => b[1].attack - a[1].attack)
+      .slice(0, 20);
+
+    const rows = teams.map(([name, stats]) => {
+      const attW = Math.min(stats.attack * 50, 100);
+      const defScore = 1 / (stats.defense || 1);
+      const defW = Math.min(defScore * 50, 100);
+      return `<tr>
+        <td style="font-size:13px;font-weight:500;">${name}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:80px;height:6px;background:var(--card);border-radius:3px;overflow:hidden;">
+              <div style="width:${attW}%;height:100%;background:var(--green);border-radius:3px;"></div>
+            </div>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--green);">${stats.attack.toFixed(2)}</span>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:80px;height:6px;background:var(--card);border-radius:3px;overflow:hidden;">
+              <div style="width:${defW}%;height:100%;background:var(--blue);border-radius:3px;"></div>
+            </div>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--blue);">${stats.defense.toFixed(2)}</span>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="setup-card" style="margin-bottom:16px;">
+      <h2>${model.leagueName} — ${Object.keys(model.teams).length} hold · ${model.matchCount} kampe analyseret</h2>
+      <div style="font-size:12px;color:var(--muted);font-family:var(--mono);margin-bottom:12px;">
+        Hjemmebanefordel: <span style="color:var(--yellow);">${model.homeAdv.toFixed(3)}</span> · 
+        Gns. hjemmemål: ${model.avgHomeXG.toFixed(2)} · Gns. udemål: ${model.avgAwayXG.toFixed(2)}
+      </div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr>
+          <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid var(--border);">Hold</th>
+          <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid var(--border);">Angrebsrating</th>
+          <th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid var(--border);">Forsvarsrating (lav = stærkt)</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+
+  document.getElementById('modelLeagueCards').innerHTML = html;
+}
+
+// ─── TRACKER ──────────────────────────────────────────
+function renderTracker() {
+  document.getElementById('trackerCount').textContent = trackerBets.length;
+  if (!trackerBets.length) {
+    document.getElementById('trackerEmpty').style.display = '';
+    document.getElementById('trackerTableWrap').style.display = 'none';
+    return;
+  }
+  document.getElementById('trackerEmpty').style.display = 'none';
+  document.getElementById('trackerTableWrap').style.display = '';
+
+  let wins=0, losses=0, totalReturn=0;
+  const rows = trackerBets.map((b,i) => {
+    let plHtml = '<span style="color:var(--yellow)">Afventer</span>';
+    if (b.result==='win') {
+      const profit = b.stake*b.odds - b.stake; wins++;
+      totalReturn += b.stake*b.odds;
+      plHtml = `<span class="result-win">+${profit.toFixed(0)} kr.</span>`;
+    } else if (b.result==='loss') {
+      losses++;
+      totalReturn -= b.stake;
+      plHtml = `<span class="result-loss">-${b.stake.toFixed(0)} kr.</span>`;
+    }
+    return `<tr>
+      <td>${b.date}</td><td>${b.match}</td><td>${b.market}</td>
+      <td>${parseFloat(b.odds).toFixed(2)}</td><td>${parseFloat(b.stake).toFixed(0)} kr.</td>
+      <td><span class="bet-badge ${b.type}" style="font-size:10px;">${b.type.toUpperCase()}</span></td>
+      <td><select onchange="updateResult(${i},this.value)" style="font-size:11px;padding:4px 8px;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:4px;">
+        <option value="pending" ${b.result==='pending'?'selected':''}>Afventer</option>
+        <option value="win" ${b.result==='win'?'selected':''}>Vundet ✓</option>
+        <option value="loss" ${b.result==='loss'?'selected':''}>Tabt ✗</option>
+      </select></td>
+      <td>${plHtml}</td>
+      <td><button class="btn btn-outline" style="padding:4px 8px;font-size:11px;" onclick="deleteBet(${i})">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('trackerBody').innerHTML = rows;
+
+  const settled = trackerBets.filter(b=>b.result!=='pending');
+  const settledStake = settled.reduce((s,b)=>s+b.stake,0);
+  const pl = totalReturn - settledStake;
+  const roi = settledStake > 0 ? (pl/settledStake*100) : 0;
+
+  document.getElementById('tStatTotal').textContent = trackerBets.length;
+  document.getElementById('tStatWins').textContent = wins;
+  document.getElementById('tStatLoss').textContent = losses;
+  document.getElementById('tStatROI').textContent = `${roi>=0?'+':''}${roi.toFixed(1)}%`;
+  document.getElementById('tStatROI').className = `stat-value ${roi>=0?'':'red'}`;
+  document.getElementById('tStatPL').textContent = `${pl>=0?'+':''}${pl.toFixed(0)} kr.`;
+  document.getElementById('tStatPL').className = `stat-value ${pl>=0?'':'red'}`;
+}
+
+function showLogForm() { document.getElementById('logFormArea').style.display=''; }
+function hideLogForm() { document.getElementById('logFormArea').style.display='none'; }
+function logBet() {
+  const match=document.getElementById('logMatch').value.trim();
+  const market=document.getElementById('logMarket').value.trim();
+  const odds=parseFloat(document.getElementById('logOdds').value);
+  const stake=parseFloat(document.getElementById('logStake').value);
+  const type=document.getElementById('logType').value;
+  if(!match||!odds||!stake){alert('Udfyld kamp, odds og indsats.');return;}
+  trackerBets.unshift({match,market,odds,stake,type,result:'pending',date:new Date().toLocaleDateString('da-DK')});
+  saveBets(); hideLogForm(); renderTracker();
+}
+function updateResult(i,val){trackerBets[i].result=val;saveBets();renderTracker();}
+function deleteBet(i){if(!confirm('Slet dette bet?'))return;trackerBets.splice(i,1);saveBets();renderTracker();}
+function saveBets(){localStorage.setItem('oddsjager_bets',JSON.stringify(trackerBets));document.getElementById('trackerCount').textContent=trackerBets.length;}
+function showError(msg){const el=document.getElementById('errorMsg');el.textContent='⚠ '+msg;el.style.display='';}
+function showInfo(msg){const el=document.getElementById('infoMsg');el.textContent=msg;el.style.display='';}
+</script>
+</body>
+</html>
