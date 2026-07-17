@@ -3,610 +3,652 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OddsJæger — Value & Arbitrage Finder</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<title>OddsJæger</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0F1923; --surface: #16232F; --card: #1C2E3D; --border: #243447;
-    --green: #00FF87; --green-dim: #00C968; --red: #FF4444; --yellow: #FFD166;
-    --blue: #4FC3F7; --text: #E8F0F7; --muted: #6B8299;
-    --mono: 'Roboto Mono', monospace; --sans: 'Inter', sans-serif;
-  }
-  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
-  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-  .logo { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--green); }
-  .logo span { color: var(--text); }
-  .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .badge-sm { font-size: 11px; font-family: var(--mono); color: var(--muted); background: var(--card); border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; }
-  .badge-sm.connected { color: var(--green); border-color: var(--green); }
-  .badge-sm.synced { color: var(--blue); border-color: var(--blue); }
-  .model-status { display: flex; align-items: center; gap: 6px; font-size: 12px; font-family: var(--mono); color: var(--muted); }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
-  .dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
-  .dot.yellow { background: var(--yellow); animation: pulse 1s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
-  .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; margin-bottom: 16px; }
-  .card h2 { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-  input[type="text"], input[type="number"], select {
-    background: var(--card); border: 1px solid var(--border); color: var(--text);
-    font-family: var(--mono); font-size: 13px; padding: 10px 14px; border-radius: 6px; outline: none; transition: border-color 0.2s;
-  }
-  input:focus, select:focus { border-color: var(--green); }
-  .api-input { flex: 1; min-width: 220px; }
-  .btn { font-family: var(--sans); font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; }
-  .btn:active { transform: scale(0.97); }
-  .btn-green { background: var(--green); color: #0F1923; }
-  .btn-green:hover { opacity: 0.88; }
-  .btn-green:disabled { opacity: 0.35; cursor: not-allowed; }
-  .btn-blue { background: var(--blue); color: #0F1923; }
-  .btn-blue:disabled { opacity: 0.35; cursor: not-allowed; }
-  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
-  .btn-outline:hover { border-color: var(--green); color: var(--green); }
-  .league-checks { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-  .league-checks label { font-size: 12px; color: var(--text); display: flex; align-items: center; gap: 5px; cursor: pointer; }
-  .progress-wrap { margin-top: 14px; display: none; }
-  .progress-label { font-size: 12px; color: var(--muted); font-family: var(--mono); margin-bottom: 6px; }
-  .progress-track { height: 6px; background: var(--card); border-radius: 3px; overflow: hidden; }
-  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--green-dim), var(--green)); border-radius: 3px; transition: width 0.4s ease; }
-  .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; align-items: center; }
-  .filter-label { font-size: 12px; color: var(--muted); font-weight: 500; }
-  .mode-toggle { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
-  .mode-btn { padding: 8px 16px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--muted); transition: all 0.15s; }
-  .mode-btn.active { background: var(--green); color: #0F1923; }
-  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 24px; }
-  .stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
-  .stat-val { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--green); margin-bottom: 4px; }
-  .stat-val.yellow { color: var(--yellow); }
-  .stat-val.blue { color: var(--blue); }
-  .stat-val.red { color: var(--red); }
-  .stat-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
-  .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
-  .tab { padding: 10px 20px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
-  .tab.active { color: var(--green); border-bottom-color: var(--green); }
-  .section-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-  .pill { background: var(--card); border: 1px solid var(--border); color: var(--green); font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 20px; }
-  .bet-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 12px; transition: border-color 0.2s; }
-  .bet-card:hover { border-color: #2d4a63; }
-  .bet-card.arb { border-left: 3px solid var(--green); }
-  .bet-card.value { border-left: 3px solid var(--yellow); }
-  .bet-card.model { border-left: 3px solid var(--blue); }
-  .bet-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
-  .match-name { font-size: 16px; font-weight: 600; }
-  .match-meta { font-size: 12px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
-  .badges { display: flex; gap: 6px; flex-wrap: wrap; }
-  .badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 4px; font-family: var(--mono); }
-  .badge.arb { background: rgba(0,255,135,0.12); color: var(--green); border: 1px solid rgba(0,255,135,0.3); }
-  .badge.value { background: rgba(255,209,102,0.10); color: var(--yellow); border: 1px solid rgba(255,209,102,0.3); }
-  .badge.model { background: rgba(79,195,247,0.10); color: var(--blue); border: 1px solid rgba(79,195,247,0.3); }
-  .odds-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 14px; }
-  .odds-cell { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; }
-  .odds-cell.hi { border-color: var(--green); background: rgba(0,255,135,0.05); }
-  .odds-cell.mdl { border-color: var(--blue); background: rgba(79,195,247,0.05); }
-  .odds-lbl { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .odds-num { font-family: var(--mono); font-size: 20px; font-weight: 700; }
-  .odds-cell.hi .odds-num { color: var(--green); }
-  .odds-cell.mdl .odds-num { color: var(--blue); }
-  .odds-sub { font-size: 10px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
-  .meter { margin-bottom: 10px; }
-  .meter-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 5px; font-family: var(--mono); }
-  .meter-val { font-weight: 700; }
-  .meter-val.green { color: var(--green); }
-  .meter-val.yellow { color: var(--yellow); }
-  .meter-val.blue { color: var(--blue); }
-  .meter-track { height: 4px; background: var(--card); border-radius: 2px; overflow: hidden; }
-  .meter-bar { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
-  .bar-green { background: linear-gradient(90deg, #00C968, #00FF87); }
-  .bar-yellow { background: linear-gradient(90deg, #cc9900, #FFD166); }
-  .bar-blue { background: linear-gradient(90deg, #1a7fa0, #4FC3F7); }
-  .info-box { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; font-size: 12px; font-family: var(--mono); color: var(--muted); line-height: 1.9; margin-top: 8px; }
-  .info-box .g { color: var(--green); font-weight: 700; }
-  .info-box .b { color: var(--blue); }
-  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
-  .empty .ico { font-size: 40px; margin-bottom: 16px; opacity: 0.5; }
-  .empty p { font-size: 14px; line-height: 1.6; }
-  .loading { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; padding: 40px 0; justify-content: center; }
-  .spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .err { background: rgba(255,68,68,0.08); border: 1px solid rgba(255,68,68,0.3); color: #ff8080; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin-bottom: 16px; display: none; }
-  .info-msg { background: rgba(79,195,247,0.08); border: 1px solid rgba(79,195,247,0.25); color: var(--blue); border-radius: 6px; padding: 12px 16px; font-size: 13px; margin-bottom: 16px; display: none; }
-  .tracker-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .tracker-table th { text-align: left; padding: 10px 12px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); border-bottom: 1px solid var(--border); font-family: var(--mono); }
-  .tracker-table td { padding: 11px 12px; border-bottom: 1px solid var(--border); font-family: var(--mono); }
-  .tracker-table tr:hover td { background: rgba(255,255,255,0.015); }
-  .log-form { display: flex; gap: 8px; flex-wrap: wrap; }
-  .log-form input, .log-form select { font-size: 12px; padding: 7px 10px; }
-  .sync-indicator { font-size: 11px; color: var(--muted); font-family: var(--mono); display: flex; align-items: center; gap: 5px; }
-  @media(max-width:600px){ .odds-grid{ grid-template-columns: repeat(3,1fr); } header{ padding:12px 16px; flex-wrap:wrap; gap:8px; } .logo{ font-size:16px; } }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0D1117;
+  --surface: #161B22;
+  --card: #1C2128;
+  --border: #30363D;
+  --green: #00E676;
+  --green-dim: #00C853;
+  --red: #FF5252;
+  --yellow: #FFD740;
+  --blue: #40C4FF;
+  --text: #E6EDF3;
+  --muted: #7D8590;
+  --mono: 'Roboto Mono', monospace;
+  --sans: 'Inter', sans-serif;
+}
+body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* HEADER */
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo { font-family: var(--mono); font-size: 18px; font-weight: 600; letter-spacing: -0.5px; }
+.logo .odds { color: var(--green); }
+.logo .jaeger { color: var(--text); }
+.header-status { display: flex; align-items: center; gap: 16px; }
+.status-chip { display: flex; align-items: center; gap: 6px; font-size: 12px; font-family: var(--mono); color: var(--muted); }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.status-dot.on { background: var(--green); }
+.status-dot.loading { background: var(--yellow); animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0.2} }
+
+/* LAYOUT */
+.layout { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 56px); }
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 20px 16px; position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto; }
+.main { padding: 24px; max-width: 860px; }
+
+/* SIDEBAR */
+.sidebar-section { margin-bottom: 24px; }
+.sidebar-label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 10px; }
+.field-group { display: flex; flex-direction: column; gap: 8px; }
+input[type="text"], input[type="number"], select, input[type="password"] {
+  background: var(--card); border: 1px solid var(--border); color: var(--text);
+  font-family: var(--mono); font-size: 12px; padding: 8px 10px; border-radius: 6px;
+  outline: none; width: 100%; transition: border-color 0.15s;
+}
+input:focus, select:focus { border-color: var(--green); }
+.btn { font-family: var(--sans); font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: 6px; border: none; cursor: pointer; transition: opacity 0.15s; width: 100%; text-align: center; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-green { background: var(--green); color: #0D1117; }
+.btn-green:hover:not(:disabled) { opacity: 0.88; }
+.btn-blue { background: var(--blue); color: #0D1117; }
+.btn-blue:hover:not(:disabled) { opacity: 0.88; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--green); color: var(--green); }
+.sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+.progress-wrap { margin-top: 10px; display: none; }
+.progress-label { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.progress-track { height: 4px; background: var(--card); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--green-dim), var(--green)); border-radius: 2px; transition: width 0.4s ease; }
+.league-checks { display: flex; flex-direction: column; gap: 6px; }
+.league-checks label { font-size: 12px; color: var(--text); display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.mini-stat { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px; }
+.mini-val { font-family: var(--mono); font-size: 18px; font-weight: 600; color: var(--green); }
+.mini-val.blue { color: var(--blue); }
+.mini-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
+
+/* TABS */
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+.tab { padding: 10px 18px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+/* BET CARDS */
+.bet-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 14px;
+  border-left: 3px solid var(--green);
+}
+.bet-card.weak { border-left-color: var(--yellow); }
+.bet-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+.match-name { font-size: 15px; font-weight: 600; color: var(--text); }
+.match-meta { font-size: 11px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
+.value-badge { font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 5px; font-family: var(--mono); background: rgba(0,230,118,0.12); color: var(--green); border: 1px solid rgba(0,230,118,0.3); white-space: nowrap; }
+.value-badge.weak { background: rgba(255,215,64,0.10); color: var(--yellow); border-color: rgba(255,215,64,0.3); }
+
+/* ODDS ROW */
+.odds-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 14px; }
+.odds-cell { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center; }
+.odds-cell.recommended { border-color: var(--green); background: rgba(0,230,118,0.06); }
+.odds-outcome { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+.odds-num { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--text); }
+.odds-cell.recommended .odds-num { color: var(--green); }
+.odds-prob { font-size: 11px; color: var(--muted); margin-top: 3px; font-family: var(--mono); }
+.odds-cell.recommended .odds-prob { color: var(--green); }
+
+/* EXPLANATION BOX */
+.explanation {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.explanation strong { color: var(--text); }
+.explanation .highlight { color: var(--green); font-weight: 600; }
+.explanation .stake { color: var(--blue); font-weight: 600; }
+
+/* VALUE METER */
+.meter-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.meter-track-wide { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.meter-bar { height: 100%; border-radius: 3px; }
+.bar-green { background: linear-gradient(90deg, var(--green-dim), var(--green)); }
+.bar-yellow { background: linear-gradient(90deg, #cc9900, var(--yellow)); }
+.meter-pct { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--green); min-width: 48px; text-align: right; }
+.meter-pct.yellow { color: var(--yellow); }
+
+/* GUIDE */
+.guide-section { margin-bottom: 32px; }
+.guide-section h3 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.guide-section p { font-size: 13px; color: var(--muted); line-height: 1.8; margin-bottom: 10px; }
+.guide-section p strong { color: var(--text); }
+.guide-example { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin: 12px 0; font-size: 13px; font-family: var(--mono); line-height: 1.8; color: var(--muted); }
+.guide-example .g { color: var(--green); font-weight: 600; }
+.guide-example .y { color: var(--yellow); }
+.guide-step { display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start; }
+.step-num { width: 26px; height: 26px; border-radius: 50%; background: var(--green); color: #0D1117; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+.step-body { font-size: 13px; color: var(--muted); line-height: 1.7; }
+.step-body strong { color: var(--text); }
+
+/* MODEL RATINGS */
+.ratings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 10px; }
+.rating-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.rating-name { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.rating-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.rating-label { font-size: 10px; color: var(--muted); width: 60px; text-transform: uppercase; letter-spacing: 0.5px; }
+.rating-bar-wrap { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.rating-bar { height: 100%; border-radius: 2px; }
+.rating-val { font-family: var(--mono); font-size: 10px; width: 32px; text-align: right; }
+
+/* TRACKER */
+.tracker-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tracker-table th { text-align: left; padding: 9px 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); border-bottom: 1px solid var(--border); font-family: var(--mono); }
+.tracker-table td { padding: 10px 10px; border-bottom: 1px solid var(--border); font-family: var(--mono); }
+.tracker-table tr:hover td { background: rgba(255,255,255,0.015); }
+
+/* TRACKER STATS */
+.tracker-stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin-bottom: 20px; }
+.t-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.t-val { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--green); margin-bottom: 3px; }
+.t-val.red { color: var(--red); }
+.t-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+
+/* MISC */
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty .ico { font-size: 36px; margin-bottom: 14px; opacity: 0.4; }
+.empty p { font-size: 14px; line-height: 1.6; }
+.loading { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; padding: 40px 0; justify-content: center; }
+.spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.err { background: rgba(255,82,82,0.08); border: 1px solid rgba(255,82,82,0.3); color: #ff8080; border-radius: 6px; padding: 11px 14px; font-size: 13px; margin-bottom: 14px; display: none; }
+.info-banner { background: rgba(64,196,255,0.08); border: 1px solid rgba(64,196,255,0.25); color: var(--blue); border-radius: 6px; padding: 11px 14px; font-size: 13px; margin-bottom: 14px; display: none; }
+.section-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.pill { background: var(--card); border: 1px solid var(--border); color: var(--green); font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 20px; }
+.log-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.log-form input, .log-form select { width: auto; font-size: 12px; padding: 7px 10px; }
+
+@media (max-width: 768px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; }
+  .odds-row { grid-template-columns: repeat(3,1fr); }
+  .tracker-stats { grid-template-columns: repeat(3,1fr); }
+}
 </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">Odds<span>Jæger</span></div>
-  <div class="header-right">
-    <div class="model-status">
-      <div class="dot" id="modelDot"></div>
-      <span id="modelStatus">Model: ikke trænet</span>
+  <div class="logo"><span class="odds">Odds</span><span class="jaeger">Jæger</span></div>
+  <div class="header-status">
+    <div class="status-chip">
+      <div class="status-dot" id="modelDot"></div>
+      <span id="modelStatus">Model ikke trænet</span>
     </div>
-    <div class="badge-sm" id="syncBadge">☁ Sky: ikke forbundet</div>
-    <div class="badge-sm" id="apiBadge">⬤ Odds: ikke forbundet</div>
+    <div class="status-chip">
+      <div class="status-dot" id="syncDot"></div>
+      <span id="syncStatus">Sky ikke forbundet</span>
+    </div>
   </div>
 </header>
 
-<div class="container">
+<div class="layout">
 
-  <!-- ODDS API -->
-  <div class="card">
-    <h2>The Odds API</h2>
-    <div class="row">
-      <input type="text" class="api-input" id="apiKey" placeholder="API-nøgle fra theoddsapi.com...">
-      <select id="regionSelect"><option value="eu">Europa (EU)</option><option value="uk">England (UK)</option></select>
-      <button class="btn btn-green" id="fetchBtn" onclick="fetchOdds()">🔍 Hent odds</button>
-    </div>
-    <div style="margin-top:10px;font-size:12px;color:var(--muted);">Gratis nøgle på <a href="https://theoddsapi.com" target="_blank" style="color:var(--green);">theoddsapi.com</a></div>
-  </div>
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
 
-  <!-- MODEL -->
-  <div class="card">
-    <h2>⚽ Dixon-Coles Model</h2>
-    <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px;">
-      Henter historiske kampresultater og beregner angreb/forsvar-ratings med eksponentiel tidsvægtning (Dixon-Coles metoden). Data hentes via CORS-proxy fra football-data.co.uk.
-    </p>
-    <div class="league-checks">
-      <label><input type="checkbox" id="lg_epl" checked> Premier League</label>
-      <label><input type="checkbox" id="lg_laliga" checked> La Liga</label>
-      <label><input type="checkbox" id="lg_bundesliga" checked> Bundesliga</label>
-      <label><input type="checkbox" id="lg_seriea" checked> Serie A</label>
-      <label><input type="checkbox" id="lg_ligue1" checked> Ligue 1</label>
-      <label><input type="checkbox" id="lg_superliga" checked> Superliga 🇩🇰</label>
-    </div>
-    <div class="row">
-      <div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.8px;">Vægtning af nylige kampe</div>
-        <select id="decayRate">
-          <option value="0.003">Moderat (6 mdr. half-life)</option>
-          <option value="0.005" selected>Høj (3-4 mdr.) — anbefalet</option>
-          <option value="0.008">Meget høj (2 mdr.)</option>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Odds API</div>
+      <div class="field-group">
+        <input type="password" id="apiKey" placeholder="Hentes fra skyen...">
+        <select id="regionSelect">
+          <option value="eu">Europa (EU)</option>
+          <option value="uk">England (UK)</option>
         </select>
+        <button class="btn btn-green" id="fetchBtn" onclick="fetchOdds()">🔍 Hent dagens odds</button>
       </div>
-      <button class="btn btn-blue" id="trainBtn" onclick="trainModel()">🧠 Træn model</button>
     </div>
-    <div class="progress-wrap" id="progressWrap">
-      <div class="progress-label" id="progressLabel">Henter data...</div>
-      <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-    </div>
-  </div>
 
-  <!-- FILTERS -->
-  <div class="filters">
-    <span class="filter-label">Vis:</span>
-    <div class="mode-toggle">
-      <button class="mode-btn active" onclick="setMode('all',this)">Alle</button>
-      <button class="mode-btn" onclick="setMode('arb',this)">Arbitrage</button>
-      <button class="mode-btn" onclick="setMode('value',this)">Value</button>
-      <button class="mode-btn" onclick="setMode('model',this)">Model 🧠</button>
-    </div>
-    <span class="filter-label">Min. value:</span>
-    <input type="number" id="minValue" value="3" min="0" max="30" style="width:65px;">
-    <span style="font-size:12px;color:var(--muted);">%</span>
-    <span class="filter-label">Bankroll:</span>
-    <input type="number" id="bankroll" value="10000" style="width:95px;">
-    <span style="font-size:12px;color:var(--muted);">kr.</span>
-  </div>
+    <hr class="sidebar-divider">
 
-  <!-- STATS -->
-  <div class="stats-grid" id="statsGrid" style="display:none;">
-    <div class="stat-box"><div class="stat-val" id="sArb">0</div><div class="stat-lbl">Arbitrage</div></div>
-    <div class="stat-box"><div class="stat-val yellow" id="sVal">0</div><div class="stat-lbl">Value bets</div></div>
-    <div class="stat-box"><div class="stat-val blue" id="sMdl">0</div><div class="stat-lbl">Model bets</div></div>
-    <div class="stat-box"><div class="stat-val" id="sKampe">0</div><div class="stat-lbl">Kampe</div></div>
-    <div class="stat-box"><div class="stat-val" id="sBestArb">–</div><div class="stat-lbl">Bedste arb</div></div>
-  </div>
-
-  <!-- TABS -->
-  <div class="tabs">
-    <div class="tab active" onclick="showTab('finder',this)">🎯 Finder</div>
-    <div class="tab" onclick="showTab('model',this)">🧠 Model</div>
-    <div class="tab" onclick="showTab('tracker',this)">📊 Tracker</div>
-  </div>
-
-  <!-- FINDER -->
-  <div id="tab-finder">
-    <div class="err" id="errMsg"></div>
-    <div class="info-msg" id="infoMsg"></div>
-    <div id="resultsArea">
-      <div class="empty"><div class="ico">⚽</div><p>Hent odds og træn modellen for at komme i gang.</p></div>
-    </div>
-  </div>
-
-  <!-- MODEL TAB -->
-  <div id="tab-model" style="display:none;">
-    <div class="empty" id="modelEmpty"><div class="ico">🧠</div><p>Træn modellen ovenfor for at se holdratings.</p></div>
-    <div id="modelContent" style="display:none;"></div>
-  </div>
-
-  <!-- TRACKER -->
-  <div id="tab-tracker" style="display:none;">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div class="section-title" style="margin-bottom:0">Bets <span class="pill" id="trackerCount">0</span></div>
-        <div class="sync-indicator" id="syncIndicator"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Model — ligatræning</div>
+      <div class="league-checks">
+        <label><input type="checkbox" id="lg_epl" checked> Premier League</label>
+        <label><input type="checkbox" id="lg_laliga" checked> La Liga</label>
+        <label><input type="checkbox" id="lg_bundesliga" checked> Bundesliga</label>
+        <label><input type="checkbox" id="lg_seriea" checked> Serie A</label>
+        <label><input type="checkbox" id="lg_ligue1" checked> Ligue 1</label>
+        <label><input type="checkbox" id="lg_superliga" checked> Superliga 🇩🇰</label>
       </div>
-      <button class="btn btn-outline" onclick="toggleLogForm()">+ Log bet</button>
+      <div style="margin-top:10px;">
+        <select id="decayRate" style="margin-bottom:8px;">
+          <option value="0.003">Moderat vægtning (6 mdr.)</option>
+          <option value="0.005" selected>Høj vægtning (3-4 mdr.) ★</option>
+          <option value="0.008">Meget høj vægtning (2 mdr.)</option>
+        </select>
+        <button class="btn btn-blue" id="trainBtn" onclick="trainModel()">🧠 Træn model</button>
+      </div>
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-label" id="progressLabel">Henter data...</div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      </div>
     </div>
-    <div id="logFormWrap" style="display:none;margin-bottom:16px;">
-      <div class="card">
-        <h2>Log bet manuelt</h2>
-        <div class="log-form">
-          <input type="text" id="lMatch" placeholder="Kamp (fx Bayern vs Arsenal)" style="min-width:180px;">
-          <input type="text" id="lMarket" placeholder="Marked (fx Hjemmehold)" style="min-width:140px;">
-          <input type="number" id="lOdds" placeholder="Odds" step="0.01" style="width:80px;">
-          <input type="number" id="lStake" placeholder="Indsats kr." style="width:110px;">
-          <select id="lType">
-            <option value="value">Value bet</option>
-            <option value="arb">Arbitrage</option>
-            <option value="model">Model bet</option>
-          </select>
-          <button class="btn btn-green" onclick="logBet()">Gem</button>
-          <button class="btn btn-outline" onclick="toggleLogForm()">Annuller</button>
+
+    <hr class="sidebar-divider">
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Filtrering</div>
+      <div class="field-group">
+        <div style="font-size:11px;color:var(--muted);">Minimum value %</div>
+        <input type="number" id="minValue" value="3" min="0" max="30" style="width:100%;">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Bankroll (kr.)</div>
+        <input type="number" id="bankroll" value="10000" style="width:100%;">
+      </div>
+    </div>
+
+    <div class="mini-stats" id="miniStats" style="display:none;">
+      <div class="mini-stat"><div class="mini-val" id="msBets">0</div><div class="mini-lbl">Model bets</div></div>
+      <div class="mini-stat"><div class="mini-val blue" id="msKampe">0</div><div class="mini-lbl">Kampe</div></div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <div class="tabs">
+      <div class="tab active" onclick="showTab('bets',this)">🎯 Bets</div>
+      <div class="tab" onclick="showTab('model',this)">📊 Holdratings</div>
+      <div class="tab" onclick="showTab('tracker',this)">📋 Tracker</div>
+      <div class="tab" onclick="showTab('guide',this)">📖 Guide</div>
+    </div>
+
+    <!-- BETS TAB -->
+    <div id="tab-bets">
+      <div class="err" id="errMsg"></div>
+      <div class="info-banner" id="infoMsg"></div>
+      <div id="resultsArea">
+        <div class="empty">
+          <div class="ico">⚽</div>
+          <p>Tryk "Hent dagens odds" for at starte.<br>Træn modellen for at se value bets baseret på xG-data.</p>
         </div>
       </div>
     </div>
-    <div class="empty" id="trackerEmpty"><div class="ico">📋</div><p>Ingen bets endnu.<br>Bets gemmes i skyen og ses på alle enheder.</p></div>
-    <div id="trackerWrap" style="display:none;">
-      <div class="stats-grid" style="margin-bottom:20px;">
-        <div class="stat-box"><div class="stat-val" id="tTotal">0</div><div class="stat-lbl">I alt</div></div>
-        <div class="stat-box"><div class="stat-val" id="tWins">0</div><div class="stat-lbl">Vundet</div></div>
-        <div class="stat-box"><div class="stat-val red" id="tLoss">0</div><div class="stat-lbl">Tabt</div></div>
-        <div class="stat-box"><div class="stat-val" id="tROI">0%</div><div class="stat-lbl">ROI</div></div>
-        <div class="stat-box"><div class="stat-val" id="tPL">0 kr.</div><div class="stat-lbl">Profit/Tab</div></div>
-      </div>
-      <table class="tracker-table">
-        <thead><tr><th>Dato</th><th>Kamp</th><th>Marked</th><th>Odds</th><th>Indsats</th><th>Type</th><th>Udfald</th><th>P/L</th><th></th></tr></thead>
-        <tbody id="trackerBody"></tbody>
-      </table>
-    </div>
-  </div>
 
+    <!-- MODEL RATINGS TAB -->
+    <div id="tab-model" style="display:none;">
+      <div class="empty" id="modelEmpty"><div class="ico">🧠</div><p>Træn modellen for at se holdratings.</p></div>
+      <div id="modelContent" style="display:none;"></div>
+    </div>
+
+    <!-- TRACKER TAB -->
+    <div id="tab-tracker" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <div class="section-title" style="margin-bottom:0">Loggede bets <span class="pill" id="trackerCount">0</span></div>
+        <button class="btn btn-outline" style="width:auto;padding:8px 14px;" onclick="toggleLogForm()">+ Log bet manuelt</button>
+      </div>
+      <div id="logFormWrap" style="display:none;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">Log bet</div>
+        <div class="log-form">
+          <input type="text" id="lMatch" placeholder="Kamp (fx Bayern vs Arsenal)" style="min-width:180px;">
+          <input type="text" id="lMarket" placeholder="Udfald (fx Hjemmehold)" style="min-width:130px;">
+          <input type="number" id="lOdds" placeholder="Odds" step="0.01" style="width:75px;">
+          <input type="number" id="lStake" placeholder="Indsats kr." style="width:100px;">
+          <select id="lType" style="width:auto;"><option value="model">Model bet</option><option value="value">Value bet</option></select>
+          <button class="btn btn-green" style="width:auto;" onclick="logBet()">Gem</button>
+          <button class="btn btn-outline" style="width:auto;" onclick="toggleLogForm()">Annuller</button>
+        </div>
+      </div>
+      <div class="empty" id="trackerEmpty"><div class="ico">📋</div><p>Ingen bets logget endnu.<br>Bets gemmes automatisk i skyen og ses på alle enheder.</p></div>
+      <div id="trackerWrap" style="display:none;">
+        <div class="tracker-stats">
+          <div class="t-stat"><div class="t-val" id="tTotal">0</div><div class="t-lbl">I alt</div></div>
+          <div class="t-stat"><div class="t-val" id="tWins">0</div><div class="t-lbl">Vundet</div></div>
+          <div class="t-stat"><div class="t-val red" id="tLoss">0</div><div class="t-lbl">Tabt</div></div>
+          <div class="t-stat"><div class="t-val" id="tROI">0%</div><div class="t-lbl">ROI</div></div>
+          <div class="t-stat"><div class="t-val" id="tPL">0 kr.</div><div class="t-lbl">Profit/Tab</div></div>
+        </div>
+        <table class="tracker-table">
+          <thead><tr><th>Dato</th><th>Kamp</th><th>Udfald</th><th>Odds</th><th>Indsats</th><th>Type</th><th>Resultat</th><th>P/L</th><th></th></tr></thead>
+          <tbody id="trackerBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- GUIDE TAB -->
+    <div id="tab-guide" style="display:none;">
+
+      <div class="guide-section">
+        <h3>Hvad er OddsJæger?</h3>
+        <p>OddsJæger bruger en matematisk model til at beregne den <strong>reelle sandsynlighed</strong> for at et fodboldhold vinder en kamp — og sammenligner den med de odds Bet365 tilbyder. Når Bet365 undervurderer et holds chancer, er der <strong>value</strong> i at spille på det.</p>
+        <p>Det handler ikke om at forudsige vinderne af kampe. Det handler om at finde kampe hvor <strong>oddsene er forkerte</strong> i forhold til hvad statistikken siger.</p>
+      </div>
+
+      <div class="guide-section">
+        <h3>Sådan fungerer Dixon-Coles modellen</h3>
+        <div class="guide-step">
+          <div class="step-num">1</div>
+          <div class="step-body"><strong>Historiske data indlæses</strong><br>Modellen henter resultater fra de seneste 3 sæsoner for alle valgte ligaer. Nylige kampe vægtes markant højere end ældre — en kamp fra forrige uge tæller meget mere end en kamp fra to sæsoner siden.</div>
+        </div>
+        <div class="guide-step">
+          <div class="step-num">2</div>
+          <div class="step-body"><strong>Hvert hold får en angreb- og forsvarsrating</strong><br>Ud fra kampresultaterne beregner modellen hvor stærkt hvert hold angriber og forsvarer sig relativt til gennemsnittet. En angrebsrating over 1.0 betyder stærkere angreb end gennemsnittet — under 1.0 er svagere.</div>
+        </div>
+        <div class="guide-step">
+          <div class="step-num">3</div>
+          <div class="step-body"><strong>Forventede mål beregnes</strong><br>For en given kamp beregnes hvor mange mål hvert hold forventes at score, baseret på eget angreb mod modstanderens forsvar — plus en hjemmebanefordel som typisk er 1.25-1.35.</div>
+        </div>
+        <div class="guide-step">
+          <div class="step-num">4</div>
+          <div class="step-body"><strong>Sandsynligheder beregnes med Poisson-fordeling</strong><br>Med de forventede mål bruger modellen statistik (Poisson-fordeling) til at beregne sandsynligheden for alle mulige slutresultater — og summerer dem til sandsynlighed for hjemmehold vinder, uafgjort og udehold vinder.</div>
+        </div>
+        <div class="guide-step">
+          <div class="step-num">5</div>
+          <div class="step-body"><strong>Sammenlignes med Bet365's odds</strong><br>Modellens sandsynlighed konverteres til "fair odds". Hvis Bet365 giver bedre odds end de fair odds, er der value — og betsit vises i appen.</div>
+        </div>
+      </div>
+
+      <div class="guide-section">
+        <h3>Sådan læser du et bet</h3>
+        <p>Lad os sige modellen viser dette:</p>
+        <div class="guide-example">
+          Arsenal vs Chelsea · Premier League<br><br>
+          🏠 Arsenal vinder · Bet365: <span class="g">2.20</span> · Model fair odds: 1.85<br>
+          🤝 Uafgjort · Bet365: 3.40 · Model fair odds: 3.60<br>
+          ✈️ Chelsea vinder · Bet365: 3.80 · Model fair odds: 4.20<br><br>
+          Model sandsynligheder: 🏠 <span class="g">54%</span> · 🤝 28% · ✈️ 24%<br>
+          Forventede mål: Arsenal <span class="g">1.8</span> — Chelsea 1.1<br><br>
+          <span class="y">Value: Arsenal vinder · +19% value</span>
+        </div>
+        <p><strong>Hvad betyder det?</strong> Modellen mener Arsenal vinder med 54% sandsynlighed. Det svarer til fair odds på 1.85 (= 1 / 0.54). Men Bet365 giver 2.20 — det er 19% bedre end hvad modellen siger er fair. Derfor er det et value bet.</p>
+        <p><strong>Hvorfor kan tallene virke selvmodsigende?</strong> Det er normalt at se at de forventede mål er relativt tæt (fx 1.8 mod 1.1) men at hjemmeholdet stadig er klar favorit. Det skyldes at selv en lille forskel i forventede mål giver stor forskel i vindersandsynlighed over 90 minutter.</p>
+        <p><strong>Indsatsen</strong> sættes altid til 2% af din bankroll — det er den klassiske "Kelly-inspirerede" tilgang der sikrer at du ikke taber for meget på en enkelt dårlig periode.</p>
+      </div>
+
+      <div class="guide-section">
+        <h3>Hvad er en god value %?</h3>
+        <p><strong>3-5%</strong> er et svagt value bet — spil kun hvis du har tillid til modellen i den liga.</p>
+        <p><strong>5-10%</strong> er et klart value bet — modellen er markant uenig med bookmaker.</p>
+        <p><strong>Over 10%</strong> er et stærkt signal — men tjek altid om der er en åbenlys forklaring (skader, suspensioner) som modellen ikke kender til.</p>
+        <p>Husk: selv de bedste value bets taber 40-50% af tiden. Gevinsten kommer fra at spille konsekvent over mange bets, ikke fra at ramme rigtigt på hvert enkelt.</p>
+      </div>
+
+      <div class="guide-section">
+        <h3>Begrænsninger du skal kende</h3>
+        <p><strong>Modellen kender ikke til skader og suspensioner.</strong> Tjek altid om en nøglespiller mangler inden du spiller et bet.</p>
+        <p><strong>Modellen er bedst i store ligaer</strong> med mange kampe og stabile hold. I Superligaen er datamængden mindre og modellen derfor lidt mere usikker.</p>
+        <p><strong>Modellen er bagudskuende.</strong> Hold der har ændret sig markant (ny træner, mange nye spillere) kan være misvurderet de første uger.</p>
+        <p><strong>Det tager tid.</strong> Statistisk skal du spille minimum 200-300 bets før du kan vurdere om modellen giver overskud. Tracker-fanen er dit vigtigste redskab.</p>
+      </div>
+
+    </div>
+
+  </main>
 </div>
 
 <script>
-// ── SUPABASE CONFIG ───────────────────────────────────
-const SUPABASE_URL = 'https://ukhnylfjenxrzlfootrt.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVraG55bGZqZW54cnpsZm9vdHJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5Njg0MjMsImV4cCI6MjA5OTU0NDQyM30.CUvzPcIKb5DLdp4Xlu-yecNCx-sNhv-oqWrApUR7xRM';
+// ── SUPABASE ──────────────────────────────────────────
+const SB_URL = 'https://ukhnylfjenxrzlfootrt.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVraG55bGZqZW54cnpsZm9vdHJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5Njg0MjMsImV4cCI6MjA5OTU0NDQyM30.CUvzPcIKb5DLdp4Xlu-yecNCx-sNhv-oqWrApUR7xRM';
 
-async function sbFetch(path, options = {}) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': options.prefer || 'return=representation',
-      ...options.headers
-    },
-    ...options
+async function sbFetch(path, opts={}) {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': opts.prefer||'return=representation', ...opts.headers },
+    ...opts
   });
-  if (!res.ok) throw new Error(`Supabase fejl: ${res.status}`);
-  const text = await res.text();
-  return text ? JSON.parse(text) : [];
+  if(!res.ok) throw new Error(`Supabase ${res.status}`);
+  const t = await res.text(); return t ? JSON.parse(t) : [];
 }
 
-async function loadBetsFromCloud() {
+// Load API key from Supabase settings table (will create if needed)
+async function loadApiKey() {
+  try {
+    // Try to get from settings table
+    const res = await sbFetch('settings?key=eq.odds_api_key&select=value');
+    if (res.length > 0 && res[0].value) {
+      document.getElementById('apiKey').value = res[0].value;
+      return res[0].value;
+    }
+  } catch(e) {}
+  // Fallback to localStorage
+  const local = localStorage.getItem('oj_apikey');
+  if (local) document.getElementById('apiKey').value = local;
+  return local;
+}
+
+async function saveApiKey(key) {
+  try {
+    // Upsert into settings table
+    await sbFetch('settings', {
+      method: 'POST',
+      prefer: 'return=minimal',
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ key: 'odds_api_key', value: key })
+    });
+  } catch(e) {
+    // Fallback to localStorage
+    localStorage.setItem('oj_apikey', key);
+  }
+}
+
+async function loadBets() {
   try {
     const data = await sbFetch('bets?order=created_at.desc&select=*');
-    trackerBets = data.map(b => ({
-      id: b.id,
-      match: b.match,
-      market: b.market,
-      odds: parseFloat(b.odds),
-      stake: parseFloat(b.stake),
-      type: b.type,
-      result: b.result,
-      date: b.bet_date
-    }));
-    document.getElementById('syncBadge').textContent = `☁ Sky: ${trackerBets.length} bets`;
-    document.getElementById('syncBadge').className = 'badge-sm synced';
-    document.getElementById('syncIndicator').innerHTML = `<div class="dot green" style="width:6px;height:6px;"></div> Synkroniseret`;
+    trackerBets = data.map(b=>({id:b.id,match:b.match,market:b.market,odds:parseFloat(b.odds),stake:parseFloat(b.stake),type:b.type,result:b.result,date:b.bet_date}));
+    document.getElementById('syncDot').className = 'status-dot on';
+    document.getElementById('syncStatus').textContent = `Sky synkroniseret`;
     return true;
-  } catch(e) {
-    document.getElementById('syncBadge').textContent = '☁ Sky: fejl';
-    return false;
-  }
+  } catch(e) { document.getElementById('syncStatus').textContent = 'Sky: fejl'; return false; }
 }
-
-async function saveBetToCloud(bet) {
+async function saveBet(b) {
   try {
-    const res = await sbFetch('bets', {
-      method: 'POST',
-      prefer: 'return=representation',
-      body: JSON.stringify({
-        match: bet.match,
-        market: bet.market || '',
-        odds: bet.odds,
-        stake: bet.stake,
-        type: bet.type,
-        result: bet.result || 'pending',
-        bet_date: bet.date
-      })
-    });
-    return res[0]?.id || null;
-  } catch(e) { console.error('Cloud save fejl:', e); return null; }
+    const res = await sbFetch('bets', {method:'POST',body:JSON.stringify({match:b.match,market:b.market||'',odds:b.odds,stake:b.stake,type:b.type,result:b.result||'pending',bet_date:b.date})});
+    return res[0]?.id||null;
+  } catch(e){return null;}
 }
-
-async function updateBetInCloud(id, result) {
-  try {
-    await sbFetch(`bets?id=eq.${id}`, {
-      method: 'PATCH',
-      prefer: 'return=minimal',
-      body: JSON.stringify({ result })
-    });
-  } catch(e) { console.error('Cloud update fejl:', e); }
-}
-
-async function deleteBetFromCloud(id) {
-  try {
-    await sbFetch(`bets?id=eq.${id}`, { method: 'DELETE', prefer: 'return=minimal' });
-  } catch(e) { console.error('Cloud delete fejl:', e); }
-}
+async function updateBet(id,result) { try{await sbFetch(`bets?id=eq.${id}`,{method:'PATCH',prefer:'return=minimal',body:JSON.stringify({result})});}catch(e){} }
+async function deleteBet(id) { try{await sbFetch(`bets?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'});}catch(e){} }
 
 // ── STATE ─────────────────────────────────────────────
-let allBets = [];
-let currentMode = 'all';
-let modelData = {};
-let trackerBets = [];
+let allBets = [], modelData = {}, trackerBets = [];
 
-// Restore API key
-const savedKey = localStorage.getItem('oj_apikey');
-if (savedKey) document.getElementById('apiKey').value = savedKey;
-
-// Restore model from localStorage
-try {
-  const m = localStorage.getItem('oj_model');
-  if (m) {
-    modelData = JSON.parse(m);
-    const tc = Object.values(modelData).reduce((s,l)=>s+Object.keys(l.teams).length,0);
-    if (tc > 0) {
-      document.getElementById('modelDot').className = 'dot green';
-      document.getElementById('modelStatus').textContent = `Model: ${tc} hold (gemt)`;
+// Init
+(async () => {
+  await loadApiKey();
+  try {
+    const m = localStorage.getItem('oj_model');
+    if (m) {
+      modelData = JSON.parse(m);
+      const tc = Object.values(modelData).reduce((s,l)=>s+Object.keys(l.teams).length,0);
+      if (tc>0) { document.getElementById('modelDot').className='status-dot on'; document.getElementById('modelStatus').textContent=`Model: ${tc} hold`; }
     }
-  }
-} catch(e) { modelData = {}; }
-
-// Load bets from cloud on startup
-loadBetsFromCloud().then(ok => {
-  if (ok) renderTracker();
-});
+  } catch(e){}
+  await loadBets();
+  renderTracker();
+})();
 
 // ── TABS ──────────────────────────────────────────────
 function showTab(name, el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  ['finder','model','tracker'].forEach(t=>{
-    document.getElementById('tab-'+t).style.display = t===name ? '' : 'none';
-  });
-  if (name==='tracker') { loadBetsFromCloud().then(()=>renderTracker()); }
-  if (name==='model') renderModelTab();
-}
-function setMode(mode, el) {
-  currentMode = mode;
-  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
-  el.classList.add('active');
-  renderResults(allBets);
+  ['bets','model','tracker','guide'].forEach(t=>{ document.getElementById('tab-'+t).style.display=t===name?'':'none'; });
+  if(name==='tracker'){loadBets().then(()=>renderTracker());}
+  if(name==='model') renderModelTab();
 }
 
-// ── CORS PROXIES (fallback chain) ─────────────────────
+// ── PROXIES ───────────────────────────────────────────
 const PROXIES = [
-  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  url => `https://cors-anywhere.herokuapp.com/${url}`,
+  u=>`https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
 ];
-
-async function fetchWithProxy(url) {
-  for (const proxy of PROXIES) {
-    try {
-      const res = await fetch(proxy(url), { signal: AbortSignal.timeout(8000) });
-      if (res.ok) {
-        const text = await res.text();
-        if (text && text.length > 100) return text;
-      }
-    } catch(e) { continue; }
+async function fetchProxy(url) {
+  for(const p of PROXIES){
+    try{const r=await fetch(p(url),{signal:AbortSignal.timeout(9000)});if(r.ok){const t=await r.text();if(t&&t.length>100)return t;}}catch(e){continue;}
   }
   return null;
 }
 
 // ── FDCO DATA ─────────────────────────────────────────
 const LEAGUE_CFG = {
-  epl:        { name:'Premier League',  code:'E0',  type:'main' },
-  laliga:     { name:'La Liga',         code:'SP1', type:'main' },
-  bundesliga: { name:'Bundesliga',      code:'D1',  type:'main' },
-  seriea:     { name:'Serie A',         code:'I1',  type:'main' },
-  ligue1:     { name:'Ligue 1',         code:'F1',  type:'main' },
-  superliga:  { name:'Superliga 🇩🇰', code:'DNK', type:'extra' },
+  epl:{name:'Premier League',code:'E0',type:'main'},
+  laliga:{name:'La Liga',code:'SP1',type:'main'},
+  bundesliga:{name:'Bundesliga',code:'D1',type:'main'},
+  seriea:{name:'Serie A',code:'I1',type:'main'},
+  ligue1:{name:'Ligue 1',code:'F1',type:'main'},
+  superliga:{name:'Superliga 🇩🇰',code:'DNK',type:'extra'},
 };
+function sc(y){return String(y).slice(2)+String(y+1).slice(2);}
 
-function seasonCode(y) { return String(y).slice(2)+String(y+1).slice(2); }
-
-async function fetchFDCO(code, startYear, type) {
-  let url;
-  if (type === 'extra') {
-    url = `https://www.football-data.co.uk/new/${code}.csv`;
-  } else {
-    url = `https://www.football-data.co.uk/mmz4281/${seasonCode(startYear)}/${code}.csv`;
-  }
-  const text = await fetchWithProxy(url);
-  if (!text) return [];
-  return parseFDCO(text, startYear, type);
+async function fetchFDCO(code,yr,type){
+  const url = type==='extra'?`https://www.football-data.co.uk/new/${code}.csv`:`https://www.football-data.co.uk/mmz4281/${sc(yr)}/${code}.csv`;
+  const text = await fetchProxy(url);
+  if(!text) return [];
+  return parseFDCO(text,yr,type);
 }
-
-function parseFDCO(csv, startYear, type) {
-  const lines = csv.trim().split('\n').filter(l=>l.trim());
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h=>h.trim().replace(/\r|\uFEFF|"/g,''));
-  const idx = {};
-  ['Date','HomeTeam','AwayTeam','FTHG','FTAG'].forEach(h=>{ idx[h]=headers.indexOf(h); });
-  if (idx.HomeTeam<0||idx.FTHG<0) return [];
-
-  const matches = [];
-  for (let i=1;i<lines.length;i++) {
-    const cols = lines[i].split(',').map(c=>c.trim().replace(/\r|"/g,''));
-    const home=cols[idx.HomeTeam], away=cols[idx.AwayTeam];
-    if(!home||!away) continue;
-    const hg=parseFloat(cols[idx.FTHG]), ag=parseFloat(cols[idx.FTAG]);
-    if(isNaN(hg)||isNaN(ag)) continue;
-    let date=new Date();
-    const dp=(cols[idx.Date]||'').split('/');
-    if(dp.length===3){ const yr=dp[2].length===2?'20'+dp[2]:dp[2]; date=new Date(`${yr}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}`); }
-    if(type==='extra'){
-      const yr=date.getFullYear();
-      if(yr<startYear||yr>startYear+1) continue;
-    }
-    if(!isNaN(date.getTime())) matches.push({h:home,a:away,hg,ag,date});
+function parseFDCO(csv,yr,type){
+  const lines=csv.trim().split('\n').filter(l=>l.trim());
+  if(lines.length<2)return[];
+  const hdr=lines[0].split(',').map(h=>h.trim().replace(/\r|\uFEFF|"/g,''));
+  const ix={};['Date','HomeTeam','AwayTeam','FTHG','FTAG'].forEach(h=>{ix[h]=hdr.indexOf(h);});
+  if(ix.HomeTeam<0||ix.FTHG<0)return[];
+  const out=[];
+  for(let i=1;i<lines.length;i++){
+    const c=lines[i].split(',').map(x=>x.trim().replace(/\r|"/g,''));
+    const h=c[ix.HomeTeam],a=c[ix.AwayTeam];if(!h||!a)continue;
+    const hg=parseFloat(c[ix.FTHG]),ag=parseFloat(c[ix.FTAG]);if(isNaN(hg)||isNaN(ag))continue;
+    let d=new Date();const dp=(c[ix.Date]||'').split('/');
+    if(dp.length===3){const y=dp[2].length===2?'20'+dp[2]:dp[2];d=new Date(`${y}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}`);}
+    if(type==='extra'){const y=d.getFullYear();if(y<yr||y>yr+1)continue;}
+    if(!isNaN(d.getTime()))out.push({h,a,hg,ag,date:d});
   }
-  return matches;
+  return out;
 }
 
 // ── DIXON-COLES ───────────────────────────────────────
-function dcWeight(date, decay) { return Math.exp(-decay*(Date.now()-date.getTime())/86400000); }
-
-function trainDC(matches, decay) {
-  if(matches.length<10) return null;
+function dcW(date,decay){return Math.exp(-decay*(Date.now()-date.getTime())/86400000);}
+function trainDC(matches,decay){
+  if(matches.length<10)return null;
   const teams={};
-  matches.forEach(m=>{ if(!teams[m.h])teams[m.h]={att:1,def:1}; if(!teams[m.a])teams[m.a]={att:1,def:1}; });
+  matches.forEach(m=>{if(!teams[m.h])teams[m.h]={att:1,def:1};if(!teams[m.a])teams[m.a]={att:1,def:1};});
   const tn=Object.keys(teams);
   let tw=0,thg=0,tag=0;
-  matches.forEach(m=>{ const w=dcWeight(m.date,decay); tw+=w; thg+=m.hg*w; tag+=m.ag*w; });
-  const avgH=tw>0?thg/tw:1.4, avgA=tw>0?tag/tw:1.1, homeAdv=avgA>0?avgH/avgA:1.3;
-  for(let iter=0;iter<60;iter++){
-    const an={},ad={},dn={},dd={};
-    tn.forEach(t=>{an[t]=0;ad[t]=0;dn[t]=0;dd[t]=0;});
+  matches.forEach(m=>{const w=dcW(m.date,decay);tw+=w;thg+=m.hg*w;tag+=m.ag*w;});
+  const avgH=tw>0?thg/tw:1.4,avgA=tw>0?tag/tw:1.1,homeAdv=avgA>0?avgH/avgA:1.3;
+  for(let it=0;it<60;it++){
+    const an={},ad={},dn={},dd={};tn.forEach(t=>{an[t]=0;ad[t]=0;dn[t]=0;dd[t]=0;});
     matches.forEach(m=>{
-      const w=dcWeight(m.date,decay), ht=teams[m.h], at=teams[m.a];
-      an[m.h]+=w*m.hg; ad[m.h]+=w*at.def*homeAdv*avgA;
-      an[m.a]+=w*m.ag; ad[m.a]+=w*ht.def*avgA;
-      dn[m.h]+=w*m.ag; dd[m.h]+=w*at.att*avgA;
-      dn[m.a]+=w*m.hg; dd[m.a]+=w*ht.att*homeAdv*avgA;
+      const w=dcW(m.date,decay),ht=teams[m.h],at=teams[m.a];
+      an[m.h]+=w*m.hg;ad[m.h]+=w*at.def*homeAdv*avgA;
+      an[m.a]+=w*m.ag;ad[m.a]+=w*ht.def*avgA;
+      dn[m.h]+=w*m.ag;dd[m.h]+=w*at.att*avgA;
+      dn[m.a]+=w*m.hg;dd[m.a]+=w*ht.att*homeAdv*avgA;
     });
-    tn.forEach(t=>{ if(ad[t]>0)teams[t].att=an[t]/ad[t]; if(dd[t]>0)teams[t].def=dn[t]/dd[t]; });
-    const ma=tn.reduce((s,t)=>s+teams[t].att,0)/tn.length;
-    const md=tn.reduce((s,t)=>s+teams[t].def,0)/tn.length;
-    tn.forEach(t=>{ teams[t].att/=ma; teams[t].def/=md; });
+    tn.forEach(t=>{if(ad[t]>0)teams[t].att=an[t]/ad[t];if(dd[t]>0)teams[t].def=dn[t]/dd[t];});
+    const ma=tn.reduce((s,t)=>s+teams[t].att,0)/tn.length,md=tn.reduce((s,t)=>s+teams[t].def,0)/tn.length;
+    tn.forEach(t=>{teams[t].att/=ma;teams[t].def/=md;});
   }
-  return {teams,homeAdv,avgH,avgA,matchCount:matches.length};
+  return{teams,homeAdv,avgH,avgA,matchCount:matches.length};
 }
-
-function poisson(l,k){ let p=Math.exp(-l); for(let i=0;i<k;i++)p*=l/(i+1); return p; }
-function tau(hg,ag,lH,lA,r){ if(hg===0&&ag===0)return 1-lH*lA*r; if(hg===0&&ag===1)return 1+lH*r; if(hg===1&&ag===0)return 1+lA*r; if(hg===1&&ag===1)return 1-r; return 1; }
-
-function predict(hTeam, aTeam, mdl) {
-  const ht=mdl.teams[hTeam], at=mdl.teams[aTeam];
-  if(!ht||!at) return null;
-  const lH=ht.att*at.def*mdl.homeAdv*mdl.avgA, lA=at.att*ht.def*mdl.avgA, r=-0.13;
+function pois(l,k){let p=Math.exp(-l);for(let i=0;i<k;i++)p*=l/(i+1);return p;}
+function tau(hg,ag,lH,lA,r){if(hg===0&&ag===0)return 1-lH*lA*r;if(hg===0&&ag===1)return 1+lH*r;if(hg===1&&ag===0)return 1+lA*r;if(hg===1&&ag===1)return 1-r;return 1;}
+function predict(hT,aT,mdl){
+  const ht=mdl.teams[hT],at=mdl.teams[aT];if(!ht||!at)return null;
+  const lH=ht.att*at.def*mdl.homeAdv*mdl.avgA,lA=at.att*ht.def*mdl.avgA,r=-0.13;
   let pH=0,pD=0,pA=0;
-  for(let h=0;h<=8;h++) for(let a=0;a<=8;a++){
-    const p=poisson(lH,h)*poisson(lA,a)*tau(h,a,lH,lA,r);
-    if(h>a)pH+=p; else if(h===a)pD+=p; else pA+=p;
-  }
+  for(let h=0;h<=8;h++)for(let a=0;a<=8;a++){const p=pois(lH,h)*pois(lA,a)*tau(h,a,lH,lA,r);if(h>a)pH+=p;else if(h===a)pD+=p;else pA+=p;}
   const tot=pH+pD+pA;
-  return {pH:pH/tot,pD:pD/tot,pA:pA/tot,fH:tot/pH,fD:tot/pD,fA:tot/pA,lH,lA};
+  return{pH:pH/tot,pD:pD/tot,pA:pA/tot,fH:tot/pH,fD:tot/pD,fA:tot/pA,lH,lA};
 }
 
 // ── TRAIN ─────────────────────────────────────────────
-async function trainModel() {
-  const btn=document.getElementById('trainBtn');
+async function trainModel(){
   const decay=parseFloat(document.getElementById('decayRate').value);
-  const selected=Object.keys(LEAGUE_CFG).filter(k=>document.getElementById('lg_'+k)?.checked);
-  if(!selected.length){alert('Vælg mindst én liga.');return;}
-
+  const sel=Object.keys(LEAGUE_CFG).filter(k=>document.getElementById('lg_'+k)?.checked);
+  if(!sel.length){alert('Vælg mindst én liga.');return;}
+  const btn=document.getElementById('trainBtn');
   btn.disabled=true;
-  document.getElementById('modelDot').className='dot yellow';
-  document.getElementById('modelStatus').textContent='Model: træner...';
-  const pw=document.getElementById('progressWrap');
-  const pf=document.getElementById('progressFill');
-  const pl=document.getElementById('progressLabel');
-  pw.style.display='';
-  modelData={};
-
-  const seasons=[2022,2023,2024];
-  const total=selected.length*seasons.length;
-  let step=0;
-
-  for(const key of selected){
-    const cfg=LEAGUE_CFG[key];
-    let allMatches=[];
+  document.getElementById('modelDot').className='status-dot loading';
+  document.getElementById('modelStatus').textContent='Træner...';
+  const pw=document.getElementById('progressWrap'),pf=document.getElementById('progressFill'),pl=document.getElementById('progressLabel');
+  pw.style.display='';modelData={};
+  const seasons=[2022,2023,2024],total=sel.length*seasons.length;let step=0;
+  for(const key of sel){
+    const cfg=LEAGUE_CFG[key];let all=[];
     for(const yr of seasons){
-      step++;
-      const pct=Math.round(step/total*100);
-      pf.style.width=pct+'%';
+      step++;const pct=Math.round(step/total*100);pf.style.width=pct+'%';
       pl.textContent=`${cfg.name} ${yr}/${yr+1}... (${pct}%)`;
-      const matches=await fetchFDCO(cfg.code,yr,cfg.type);
-      allMatches=allMatches.concat(matches);
+      const m=await fetchFDCO(cfg.code,yr,cfg.type);all=all.concat(m);
       await new Promise(r=>setTimeout(r,200));
     }
-    if(allMatches.length>5){
-      const m=trainDC(allMatches,decay);
-      if(m){ m.name=cfg.name; modelData[key]=m;
-        console.log(`✓ ${cfg.name}: ${Object.keys(m.teams).length} hold, ${m.matchCount} kampe`); }
-    }
+    if(all.length>5){const m=trainDC(all,decay);if(m){m.name=cfg.name;modelData[key]=m;}}
   }
-
   const tc=Object.values(modelData).reduce((s,l)=>s+Object.keys(l.teams).length,0);
   const lc=Object.keys(modelData).length;
-  document.getElementById('modelDot').className=tc>0?'dot green':'dot';
+  document.getElementById('modelDot').className=tc>0?'status-dot on':'status-dot';
   document.getElementById('modelStatus').textContent=tc>0?`Model: ${tc} hold, ${lc} ligaer`:'Model: ingen data';
-  btn.disabled=false;
-  pw.style.display='none';
-
-  if(tc>0){
-    try{localStorage.setItem('oj_model',JSON.stringify(modelData));}catch(e){}
-    if(allBets.length>0) renderResults(allBets);
-    renderModelTab();
-    console.log('Model klar. Ligaer:',Object.keys(modelData));
-  } else {
-    alert('Ingen data hentet. Proxyen kan have problemer — prøv igen om lidt.');
-  }
+  btn.disabled=false;pw.style.display='none';
+  if(tc>0){try{localStorage.setItem('oj_model',JSON.stringify(modelData));}catch(e){}
+    if(allBets.length>0)renderResults(allBets);renderModelTab();}
+  else{alert('Ingen data hentet — proxyen kan have midlertidige problemer. Prøv igen om lidt.');}
 }
 
-// ── FETCH ODDS ────────────────────────────────────────
+// ── FETCH ODDS (Bet365 only) ──────────────────────────
+function isBet365(bm){return bm.key==='bet365'||bm.title?.toLowerCase().includes('bet365');}
+
 async function fetchOdds(){
   const key=document.getElementById('apiKey').value.trim();
-  if(!key){showErr('Indtast API-nøgle.');return;}
-  localStorage.setItem('oj_apikey',key);
+  if(!key){showErr('Indtast din Odds API-nøgle.');return;}
+  await saveApiKey(key);
   const region=document.getElementById('regionSelect').value;
   document.getElementById('fetchBtn').disabled=true;
-  document.getElementById('resultsArea').innerHTML='<div class="loading"><div class="spinner"></div>Henter odds...</div>';
-  document.getElementById('errMsg').style.display='none';
-  document.getElementById('infoMsg').style.display='none';
-  document.getElementById('statsGrid').style.display='none';
+  document.getElementById('resultsArea').innerHTML='<div class="loading"><div class="spinner"></div>Henter Bet365-odds...</div>';
+  document.getElementById('errMsg').style.display='none';document.getElementById('infoMsg').style.display='none';
   try{
     const sr=await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${key}`);
-    if(!sr.ok) throw new Error('Ugyldig API-nøgle.');
+    if(!sr.ok)throw new Error('Ugyldig API-nøgle.');
     const sports=await sr.json();
     const football=sports.filter(s=>s.group==='Soccer'&&s.active).map(s=>s.key);
-    let allMatches=[];
+    let raw=[];
     for(let i=0;i<Math.min(football.length,20);i+=5){
       const batch=football.slice(i,i+5);
       const res=await Promise.all(batch.map(s=>
-        fetch(`https://api.the-odds-api.com/v4/sports/${s}/odds/?apiKey=${key}&regions=${region}&markets=h2h&oddsFormat=decimal`)
+        fetch(`https://api.the-odds-api.com/v4/sports/${s}/odds/?apiKey=${key}&regions=${region}&markets=h2h&oddsFormat=decimal&bookmakers=bet365`)
           .then(r=>r.ok?r.json():[]).catch(()=>[])
       ));
-      res.forEach(r=>{if(Array.isArray(r))allMatches=allMatches.concat(r);});
+      res.forEach(r=>{if(Array.isArray(r))raw=raw.concat(r);});
     }
-    document.getElementById('apiBadge').textContent='⬤ Odds: forbundet';
-    document.getElementById('apiBadge').className='badge-sm connected';
-    allBets=analyzeMatches(allMatches);
-    document.getElementById('statsGrid').style.display='grid';
+    allBets=analyzeMatches(raw);
+    document.getElementById('miniStats').style.display='grid';
+    document.getElementById('msBets').textContent=allBets.filter(b=>b.hasMdl).length;
+    document.getElementById('msKampe').textContent=allBets.length;
     renderResults(allBets);
-    if(!Object.keys(modelData).length) showInfo('💡 Træn modellen ovenfor for at se model-baserede value bets.');
+    if(!Object.keys(modelData).length)showInfo('💡 Træn modellen i sidebaren for at se value bets baseret på Dixon-Coles xG-modellen.');
   }catch(e){showErr(e.message||'Ukendt fejl.');document.getElementById('resultsArea').innerHTML='';}
   document.getElementById('fetchBtn').disabled=false;
 }
 
-// ── SPORT → LEAGUE KEY ────────────────────────────────
-function sportToLeague(k){
-  k=k.toLowerCase();
+// ── SPORT → LEAGUE ────────────────────────────────────
+function s2l(k){k=k.toLowerCase();
   if(k.includes('england')||k.includes('epl')||k.includes('premier'))return 'epl';
   if(k.includes('spain')||k.includes('la_liga'))return 'laliga';
   if(k.includes('germany')||k.includes('bundesliga'))return 'bundesliga';
@@ -624,188 +666,219 @@ function fuzzy(name,teams){
 // ── ANALYZE ───────────────────────────────────────────
 function analyzeMatches(matches){
   const minVal=parseFloat(document.getElementById('minValue').value)||3;
-  const results=[];
+  const out=[];
   matches.forEach(m=>{
-    if(!m.bookmakers||m.bookmakers.length<3)return;
-    const best={},allP={};
-    m.bookmakers.forEach(bm=>{bm.markets?.forEach(mkt=>{if(mkt.key!=='h2h')return;mkt.outcomes?.forEach(o=>{if(!allP[o.name])allP[o.name]=[];allP[o.name].push(o.price);if(!best[o.name]||o.price>best[o.name].price)best[o.name]={price:o.price,bm:bm.title};});});});
-    const names=Object.keys(best);
-    if(names.length<2)return;
-    const mktFair={};
-    names.forEach(n=>{const p=allP[n];mktFair[n]=p.reduce((a,b)=>a+b,0)/p.length;});
-    const implSum=names.reduce((s,n)=>s+1/best[n].price,0);
-    const arbProfit=(1/implSum-1)*100;
-    const valueOdds=names.map(n=>({name:n,price:best[n].price,bm:best[n].bm,fair:mktFair[n],val:mktFair[n]>0?((best[n].price-mktFair[n])/mktFair[n])*100:0})).filter(v=>v.val>=minVal);
+    // Get Bet365 odds only
+    const b365=m.bookmakers?.find(isBet365);
+    if(!b365)return;
+    const odds={};
+    b365.markets?.forEach(mkt=>{if(mkt.key!=='h2h')return;mkt.outcomes?.forEach(o=>{odds[o.name]=o.price;});});
+    const names=Object.keys(odds);if(names.length<2)return;
+
     let modelPred=null;
-    const lk=sportToLeague(m.sport_key);
+    const lk=s2l(m.sport_key);
     if(lk&&modelData[lk]){
       const mdl=modelData[lk];
-      const hm=fuzzy(m.home_team,mdl.teams), am=fuzzy(m.away_team,mdl.teams);
-      if(hm&&am){
-        const p=predict(hm,am,mdl);
-        if(p){
-          modelPred=p;
-          modelPred.mvBets=names.map(n=>{
-            let fair;
-            const nl=n.toLowerCase(),hl=m.home_team.toLowerCase();
-            if(nl===hl||nl.includes(hl.split(' ')[0]))fair=p.fH;
-            else if(nl==='draw')fair=p.fD;
-            else fair=p.fA;
-            const mv=fair>0?((best[n].price-fair)/fair)*100:0;
-            return{name:n,price:best[n].price,bm:best[n].bm,fair,mv};
-          }).filter(v=>v.mv>=minVal);
-        }
-      }
+      const hm=fuzzy(m.home_team,mdl.teams),am=fuzzy(m.away_team,mdl.teams);
+      if(hm&&am){const p=predict(hm,am,mdl);if(p)modelPred=p;}
     }
-    const isArb=arbProfit>0.5, hasVal=valueOdds.length>0, hasMdl=modelPred?.mvBets?.length>0;
-    if(!isArb&&!hasVal&&!hasMdl)return;
-    results.push({id:m.id,home:m.home_team,away:m.away_team,sport:m.sport_key,start:m.commence_time,best,mktFair,allP,arbProfit,valueOdds,isArb,hasVal,hasMdl,modelPred,bmCount:m.bookmakers.length,lk});
+
+    // Find value bets vs model
+    let mvBets=[];
+    if(modelPred){
+      mvBets=names.map(n=>{
+        const price=odds[n];
+        const nl=n.toLowerCase(),hl=m.home_team.toLowerCase();
+        let fair,prob;
+        if(nl===hl||nl.includes(hl.split(' ')[0])){fair=modelPred.fH;prob=modelPred.pH;}
+        else if(nl==='draw'){fair=modelPred.fD;prob=modelPred.pD;}
+        else{fair=modelPred.fA;prob=modelPred.pA;}
+        const mv=fair>0?((price-fair)/fair)*100:0;
+        return{name:n,price,fair,prob,mv};
+      }).filter(v=>v.mv>=minVal);
+    }
+
+    const hasMdl=mvBets.length>0;
+    if(!hasMdl)return;
+
+    out.push({
+      id:m.id,home:m.home_team,away:m.away_team,sport:m.sport_key,
+      start:m.commence_time,odds,modelPred,mvBets,hasMdl,lk
+    });
   });
-  results.sort((a,b)=>{if(a.isArb&&!b.isArb)return -1;if(!a.isArb&&b.isArb)return 1;return 0;});
-  return results;
+  out.sort((a,b)=>{
+    const av=Math.max(...a.mvBets.map(v=>v.mv));
+    const bv=Math.max(...b.mvBets.map(v=>v.mv));
+    return bv-av;
+  });
+  return out;
 }
 
 // ── RENDER RESULTS ────────────────────────────────────
 function renderResults(bets){
-  const filtered=bets.filter(b=>{
-    if(currentMode==='arb')return b.isArb;
-    if(currentMode==='value')return b.hasVal;
-    if(currentMode==='model')return b.hasMdl;
-    return true;
-  });
+  if(!bets.length){
+    document.getElementById('resultsArea').innerHTML='<div class="empty"><div class="ico">🔎</div><p>Ingen value bets fundet.<br>Prøv at sænke minimum value % i sidebaren.</p></div>';
+    return;
+  }
   const bankroll=parseFloat(document.getElementById('bankroll').value)||10000;
-  const stake=bankroll*0.02;
-  const bestArb=bets.filter(b=>b.isArb).length?Math.max(...bets.filter(b=>b.isArb).map(b=>b.arbProfit)):0;
-  document.getElementById('sArb').textContent=bets.filter(b=>b.isArb).length;
-  document.getElementById('sVal').textContent=bets.filter(b=>b.hasVal).length;
-  document.getElementById('sMdl').textContent=bets.filter(b=>b.hasMdl).length;
-  document.getElementById('sKampe').textContent=bets.length;
-  document.getElementById('sBestArb').textContent=bestArb>0?`+${bestArb.toFixed(2)}%`:'–';
-  if(!filtered.length){document.getElementById('resultsArea').innerHTML='<div class="empty"><div class="ico">🔎</div><p>Ingen resultater. Prøv at sænke min. value % eller skift filter.</p></div>';return;}
-  const html=filtered.map(b=>{
+  const stake=(bankroll*0.02).toFixed(0);
+
+  const html=bets.map(b=>{
     const dt=new Date(b.start);
-    const ds=dt.toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'});
+    const ds=dt.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
     const ts=dt.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'});
-    const league=b.sport.replace('soccer_','').replace(/_/g,' ').toUpperCase();
-    const names=Object.keys(b.best);
+    const league=b.sport.replace('soccer_','').replace(/_/g,' ');
+    const names=Object.keys(b.odds);
+    const topBet=b.mvBets.reduce((a,v)=>v.mv>a.mv?v:a);
+    const isStrong=topBet.mv>=5;
+
+    // Odds cells
     const oddsHtml=names.map(n=>{
-      const isVal=b.valueOdds.some(v=>v.name===n), isMdl=b.modelPred?.mvBets?.some(v=>v.name===n);
-      let cls=isVal?'hi':isMdl?'mdl':'';
-      let mf='';
+      const price=b.odds[n];
+      const isRec=b.mvBets.some(v=>v.name===n);
+      const nl=n.toLowerCase(),hl=b.home.toLowerCase();
+      let prob=0,fair=0;
       if(b.modelPred){
-        const nl=n.toLowerCase(),hl=b.home.toLowerCase();
-        let f=nl===hl||nl.includes(hl.split(' ')[0])?b.modelPred.fH:nl==='draw'?b.modelPred.fD:b.modelPred.fA;
-        mf=`<div class="odds-sub" style="color:var(--blue)">mdl: ${f.toFixed(2)}</div>`;
+        if(nl===hl||nl.includes(hl.split(' ')[0])){prob=b.modelPred.pH;fair=b.modelPred.fH;}
+        else if(nl==='draw'){prob=b.modelPred.pD;fair=b.modelPred.fD;}
+        else{prob=b.modelPred.pA;fair=b.modelPred.fA;}
       }
       const lbl=n===b.home?'🏠 Hjemme':n==='Draw'?'🤝 Uafgjort':'✈️ Ude';
-      return `<div class="odds-cell ${cls}"><div class="odds-lbl">${lbl}</div><div class="odds-num">${b.best[n].price.toFixed(2)}</div><div class="odds-sub">mkt: ${b.mktFair[n].toFixed(2)}</div>${mf}<div class="odds-sub">${b.best[n].bm}</div></div>`;
+      return `<div class="odds-cell${isRec?' recommended':''}">
+        <div class="odds-outcome">${lbl}</div>
+        <div class="odds-num">${price.toFixed(2)}</div>
+        ${b.modelPred?`<div class="odds-prob">${(prob*100).toFixed(0)}% sandsynlighed</div>`:''}
+        ${b.modelPred&&fair>0?`<div class="odds-prob" style="font-size:10px;">Fair odds: ${fair.toFixed(2)}</div>`:''}
+      </div>`;
     }).join('');
-    let extra='';
-    if(b.isArb){
-      const is=names.reduce((s,n)=>s+1/b.best[n].price,0);
-      const stks=names.map(n=>({n,s:(stake/is)*(1/b.best[n].price),bm:b.best[n].bm}));
-      const pf=stake/is-stake, mw=Math.min(b.arbProfit*10,100);
-      extra+=`<div class="meter"><div class="meter-top"><span>Arbitrage profit</span><span class="meter-val green">+${b.arbProfit.toFixed(2)}%</span></div><div class="meter-track"><div class="meter-bar bar-green" style="width:${mw}%"></div></div></div><div class="info-box">${stks.map(s=>`Indsæt <strong>${s.s.toFixed(0)} kr.</strong> på "${s.n}" hos ${s.bm}`).join('<br>')}<br>→ Garanteret profit: <span class="g">+${pf.toFixed(0)} kr. (+${b.arbProfit.toFixed(2)}%)</span></div>`;
+
+    // Natural language explanation
+    let explanation='';
+    if(b.modelPred){
+      const top=topBet;
+      const nl=top.name.toLowerCase(),hl=b.home.toLowerCase();
+      const teamLabel=nl===hl||nl.includes(hl.split(' ')[0])?b.home:nl==='draw'?'uafgjort':b.away;
+      const pct=(top.prob*100).toFixed(0);
+      const valueRounded=top.mv.toFixed(1);
+      explanation=`
+        <div class="explanation">
+          Modellen mener <strong>${teamLabel==='uafgjort'?'kampen ender uafgjort':''+teamLabel+' vinder'}</strong> med <span class="highlight">${pct}% sandsynlighed</span> — svarende til fair odds på <strong>${top.fair.toFixed(2)}</strong>.<br>
+          Bet365 tilbyder <strong>${top.price.toFixed(2)}</strong>, som er <span class="highlight">${valueRounded}% bedre</span> end modellens fair odds. Det er value.<br>
+          <br>
+          Forventede mål i kampen: <strong>${b.home} ${b.modelPred.lH.toFixed(2)}</strong> — <strong>${b.away} ${b.modelPred.lA.toFixed(2)}</strong><br>
+          Anbefalet indsats (2% af bankroll): <span class="stake">${stake} kr.</span>
+          ${isStrong?'<br><br>⭐ <strong>Stærkt signal</strong> — modellen er markant uenig med Bet365.':''}
+        </div>`;
     }
-    if(b.hasVal&&!b.isArb){
-      const top=b.valueOdds.reduce((a,v)=>v.val>a.val?v:a);
-      const mw=Math.min(top.val*4,100);
-      extra+=`<div class="meter" style="margin-top:8px"><div class="meter-top"><span>Market value</span><span class="meter-val yellow">+${top.val.toFixed(1)}%</span></div><div class="meter-track"><div class="meter-bar bar-yellow" style="width:${mw}%"></div></div></div><div class="info-box">Value: <strong>"${top.name}"</strong> @ <strong>${top.price.toFixed(2)}</strong> (mkt fair: ${top.fair.toFixed(2)}) — <span class="b">${top.bm}</span><br>Anbefalet indsats (2%): <span class="g">${stake.toFixed(0)} kr.</span></div>`;
-    }
-    if(b.hasMdl&&b.modelPred){
-      const top=b.modelPred.mvBets.reduce((a,v)=>v.mv>a.mv?v:a);
-      const mw=Math.min(top.mv*4,100);
-      extra+=`<div class="meter" style="margin-top:8px"><div class="meter-top"><span>Model value (Dixon-Coles)</span><span class="meter-val blue">+${top.mv.toFixed(1)}%</span></div><div class="meter-track"><div class="meter-bar bar-blue" style="width:${mw}%"></div></div></div><div class="info-box">Model: <strong>"${top.name}"</strong> @ <strong>${top.price.toFixed(2)}</strong> (fair: ${top.fair.toFixed(2)}) — ${top.bm}<br>Sandsynligheder: 🏠 ${(b.modelPred.pH*100).toFixed(1)}% · 🤝 ${(b.modelPred.pD*100).toFixed(1)}% · ✈️ ${(b.modelPred.pA*100).toFixed(1)}%<br>Forventede mål: Hjemme <span class="g">${b.modelPred.lH.toFixed(2)}</span> — Ude <span class="g">${b.modelPred.lA.toFixed(2)}</span></div>`;
-    }
-    const badges=[];
-    if(b.isArb)badges.push(`<span class="badge arb">ARB +${b.arbProfit.toFixed(2)}%</span>`);
-    if(b.hasVal&&!b.isArb)badges.push(`<span class="badge value">VALUE +${b.valueOdds.reduce((a,v)=>v.val>a.val?v:a).val.toFixed(1)}%</span>`);
-    if(b.hasMdl)badges.push(`<span class="badge model">MODEL 🧠</span>`);
-    const cls=b.isArb?'arb':b.hasMdl?'model':'value';
-    return `<div class="bet-card ${cls}"><div class="bet-top"><div><div class="match-name">${b.home} vs ${b.away}</div><div class="match-meta">${league} · ${ds} ${ts} · ${b.bmCount} bookmakers</div></div><div class="badges">${badges.join('')}</div></div><div class="odds-grid">${oddsHtml}</div>${extra}</div>`;
+
+    // Value meter
+    const mw=Math.min(topBet.mv*5,100);
+    const meterColor=isStrong?'bar-green':'bar-yellow';
+    const pctColor=isStrong?'':'yellow';
+
+    return `<div class="bet-card${isStrong?'':' weak'}">
+      <div class="bet-header">
+        <div>
+          <div class="match-name">${b.home} vs ${b.away}</div>
+          <div class="match-meta">${league} · ${ds} kl. ${ts}</div>
+        </div>
+        <div class="value-badge${isStrong?'':' weak'}">+${topBet.mv.toFixed(1)}% value</div>
+      </div>
+      <div class="odds-row">${oddsHtml}</div>
+      <div class="meter-row">
+        <div class="meter-track-wide"><div class="meter-bar ${meterColor}" style="width:${mw}%"></div></div>
+        <div class="meter-pct ${pctColor}">+${topBet.mv.toFixed(1)}%</div>
+      </div>
+      ${explanation}
+    </div>`;
   }).join('');
-  document.getElementById('resultsArea').innerHTML=`<div class="section-title">Resultater <span class="pill">${filtered.length}</span></div>${html}`;
+
+  document.getElementById('resultsArea').innerHTML=`
+    <div class="section-title">Value bets — Bet365 <span class="pill">${bets.length}</span></div>
+    ${html}`;
 }
 
-// ── MODEL TAB ─────────────────────────────────────────
+// ── MODEL RATINGS TAB ─────────────────────────────────
 function renderModelTab(){
-  if(!Object.keys(modelData).length){document.getElementById('modelEmpty').style.display='';document.getElementById('modelContent').style.display='none';return;}
+  if(!Object.keys(modelData).length){
+    document.getElementById('modelEmpty').style.display='';document.getElementById('modelContent').style.display='none';return;
+  }
   document.getElementById('modelEmpty').style.display='none';document.getElementById('modelContent').style.display='';
   const html=Object.entries(modelData).map(([key,mdl])=>{
-    const sorted=Object.entries(mdl.teams).sort((a,b)=>b[1].att-a[1].att).slice(0,20);
-    const rows=sorted.map(([name,s])=>{
-      const aw=Math.min(s.att*50,100), dw=Math.min((1/Math.max(s.def,0.1))*50,100);
-      return `<tr><td style="font-size:13px;font-weight:500;padding:8px;">${name}</td><td style="padding:8px;"><div style="display:flex;align-items:center;gap:8px;"><div style="width:80px;height:5px;background:var(--card);border-radius:3px;overflow:hidden;"><div style="width:${aw}%;height:100%;background:var(--green);border-radius:3px;"></div></div><span style="font-family:var(--mono);font-size:11px;color:var(--green);">${s.att.toFixed(2)}</span></div></td><td style="padding:8px;"><div style="display:flex;align-items:center;gap:8px;"><div style="width:80px;height:5px;background:var(--card);border-radius:3px;overflow:hidden;"><div style="width:${dw}%;height:100%;background:var(--blue);border-radius:3px;"></div></div><span style="font-family:var(--mono);font-size:11px;color:var(--blue);">${s.def.toFixed(2)}</span></div></td></tr>`;
+    const sorted=Object.entries(mdl.teams).sort((a,b)=>b[1].att-a[1].att);
+    const cards=sorted.map(([name,s])=>{
+      const aw=Math.min(s.att/2*100,100);
+      const dw=Math.min((2-Math.min(s.def,2))/2*100,100);
+      return `<div class="rating-card">
+        <div class="rating-name">${name}</div>
+        <div class="rating-row">
+          <div class="rating-label">Angreb</div>
+          <div class="rating-bar-wrap"><div class="rating-bar" style="width:${aw}%;background:var(--green);"></div></div>
+          <div class="rating-val" style="color:var(--green)">${s.att.toFixed(2)}</div>
+        </div>
+        <div class="rating-row">
+          <div class="rating-label">Forsvar</div>
+          <div class="rating-bar-wrap"><div class="rating-bar" style="width:${dw}%;background:var(--blue);"></div></div>
+          <div class="rating-val" style="color:var(--blue)">${s.def.toFixed(2)}</div>
+        </div>
+      </div>`;
     }).join('');
-    return `<div class="card" style="margin-bottom:16px;"><h2>${mdl.name} — ${Object.keys(mdl.teams).length} hold · ${mdl.matchCount} kampe</h2><div style="font-size:12px;color:var(--muted);font-family:var(--mono);margin-bottom:12px;">Hjemmebanefordel: <span style="color:var(--yellow)">${mdl.homeAdv.toFixed(3)}</span> · Gns. hjemmemål: ${mdl.avgH.toFixed(2)} · Gns. udemål: ${mdl.avgA.toFixed(2)}</div><table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Hold</th><th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Angreb ↑</th><th style="text-align:left;padding:6px 8px;font-size:10px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Forsvar (lav=stærkt)</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    return `<div style="margin-bottom:28px;">
+      <div class="section-title">${mdl.name} — ${Object.keys(mdl.teams).length} hold · ${mdl.matchCount} kampe <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">· Hjemmebanefordel: ${mdl.homeAdv.toFixed(2)}x</span></div>
+      <div class="ratings-grid">${cards}</div>
+    </div>`;
   }).join('');
   document.getElementById('modelContent').innerHTML=html;
 }
 
 // ── TRACKER ───────────────────────────────────────────
 function renderTracker(){
-  const count=trackerBets.length;
-  document.getElementById('trackerCount').textContent=count;
-  if(!count){document.getElementById('trackerEmpty').style.display='';document.getElementById('trackerWrap').style.display='none';return;}
+  const n=trackerBets.length;
+  document.getElementById('trackerCount').textContent=n;
+  if(!n){document.getElementById('trackerEmpty').style.display='';document.getElementById('trackerWrap').style.display='none';return;}
   document.getElementById('trackerEmpty').style.display='none';document.getElementById('trackerWrap').style.display='';
-  let wins=0,losses=0,ret=0,settledStake=0;
+  let wins=0,losses=0,ret=0,ss=0;
   const rows=trackerBets.map((b,i)=>{
     let pl='<span style="color:var(--yellow)">Afventer</span>';
-    if(b.result==='win'){wins++;const p=b.stake*b.odds-b.stake;ret+=p;settledStake+=b.stake;pl=`<span style="color:var(--green);font-weight:600">+${p.toFixed(0)} kr.</span>`;}
-    else if(b.result==='loss'){losses++;ret-=b.stake;settledStake+=b.stake;pl=`<span style="color:var(--red);font-weight:600">-${b.stake.toFixed(0)} kr.</span>`;}
-    return `<tr><td>${b.date||'–'}</td><td>${b.match}</td><td>${b.market||'–'}</td><td>${parseFloat(b.odds).toFixed(2)}</td><td>${parseFloat(b.stake).toFixed(0)} kr.</td><td><span class="badge ${b.type}" style="font-size:10px;">${b.type.toUpperCase()}</span></td>
-    <td><select onchange="updateResult('${b.id}',this.value,${i})" style="font-size:11px;padding:4px 8px;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:4px;">
-      <option value="pending" ${b.result==='pending'?'selected':''}>Afventer</option>
-      <option value="win" ${b.result==='win'?'selected':''}>Vundet ✓</option>
-      <option value="loss" ${b.result==='loss'?'selected':''}>Tabt ✗</option>
-    </select></td><td>${pl}</td>
-    <td><button class="btn btn-outline" style="padding:3px 8px;font-size:11px;" onclick="deleteBet('${b.id}',${i})">✕</button></td></tr>`;
+    if(b.result==='win'){wins++;const p=b.stake*b.odds-b.stake;ret+=p;ss+=b.stake;pl=`<span style="color:var(--green);font-weight:600">+${p.toFixed(0)} kr.</span>`;}
+    else if(b.result==='loss'){losses++;ret-=b.stake;ss+=b.stake;pl=`<span style="color:var(--red);font-weight:600">-${b.stake.toFixed(0)} kr.</span>`;}
+    return `<tr>
+      <td>${b.date||'–'}</td><td>${b.match}</td><td>${b.market||'–'}</td>
+      <td>${parseFloat(b.odds).toFixed(2)}</td><td>${parseFloat(b.stake).toFixed(0)} kr.</td>
+      <td style="font-size:10px;font-weight:700;color:var(--blue);">${(b.type||'').toUpperCase()}</td>
+      <td><select onchange="updateBetResult('${b.id}',this.value,${i})" style="font-size:11px;padding:4px 8px;background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:4px;">
+        <option value="pending" ${b.result==='pending'?'selected':''}>Afventer</option>
+        <option value="win" ${b.result==='win'?'selected':''}>Vundet ✓</option>
+        <option value="loss" ${b.result==='loss'?'selected':''}>Tabt ✗</option>
+      </select></td>
+      <td>${pl}</td>
+      <td><button onclick="deleteBetRow('${b.id}',${i})" style="background:none;border:1px solid var(--border);color:var(--muted);border-radius:4px;padding:3px 7px;cursor:pointer;font-size:11px;">✕</button></td>
+    </tr>`;
   }).join('');
   document.getElementById('trackerBody').innerHTML=rows;
-  const roi=settledStake>0?ret/settledStake*100:0;
-  document.getElementById('tTotal').textContent=count;
+  const roi=ss>0?ret/ss*100:0;
+  document.getElementById('tTotal').textContent=n;
   document.getElementById('tWins').textContent=wins;
   document.getElementById('tLoss').textContent=losses;
   document.getElementById('tROI').textContent=`${roi>=0?'+':''}${roi.toFixed(1)}%`;
-  document.getElementById('tROI').className=`stat-val ${roi>=0?'':'red'}`;
+  document.getElementById('tROI').className=`t-val${roi<0?' red':''}`;
   document.getElementById('tPL').textContent=`${ret>=0?'+':''}${ret.toFixed(0)} kr.`;
-  document.getElementById('tPL').className=`stat-val ${ret>=0?'':'red'}`;
+  document.getElementById('tPL').className=`t-val${ret<0?' red':''}`;
 }
 
 function toggleLogForm(){const w=document.getElementById('logFormWrap');w.style.display=w.style.display?'':'block';}
-
 async function logBet(){
   const match=document.getElementById('lMatch').value.trim();
   const odds=parseFloat(document.getElementById('lOdds').value);
   const stake=parseFloat(document.getElementById('lStake').value);
   if(!match||!odds||!stake){alert('Udfyld kamp, odds og indsats.');return;}
-  const bet={match,market:document.getElementById('lMarket').value.trim(),odds,stake,type:document.getElementById('lType').value,result:'pending',date:new Date().toLocaleDateString('da-DK')};
-  const id=await saveBetToCloud(bet);
-  if(id){
-    bet.id=id;
-    trackerBets.unshift(bet);
-    toggleLogForm();
-    renderTracker();
-    document.getElementById('trackerCount').textContent=trackerBets.length;
-    document.getElementById('syncBadge').textContent=`☁ Sky: ${trackerBets.length} bets`;
-  } else {
-    alert('Kunne ikke gemme i skyen. Tjek din forbindelse.');
-  }
+  const b={match,market:document.getElementById('lMarket').value.trim(),odds,stake,type:document.getElementById('lType').value,result:'pending',date:new Date().toLocaleDateString('da-DK')};
+  const id=await saveBet(b);
+  if(id){b.id=id;trackerBets.unshift(b);toggleLogForm();renderTracker();}
+  else alert('Kunne ikke gemme i skyen.');
 }
-
-async function updateResult(id,val,i){
-  trackerBets[i].result=val;
-  await updateBetInCloud(id,val);
-  renderTracker();
-}
-
-async function deleteBet(id,i){
-  if(!confirm('Slet dette bet?'))return;
-  await deleteBetFromCloud(id);
-  trackerBets.splice(i,1);
-  renderTracker();
-}
-
+async function updateBetResult(id,val,i){trackerBets[i].result=val;await updateBet(id,val);renderTracker();}
+async function deleteBetRow(id,i){if(!confirm('Slet dette bet?'))return;await deleteBet(id);trackerBets.splice(i,1);renderTracker();}
 function showErr(m){const e=document.getElementById('errMsg');e.textContent='⚠ '+m;e.style.display='';}
 function showInfo(m){const e=document.getElementById('infoMsg');e.textContent=m;e.style.display='';}
 </script>
