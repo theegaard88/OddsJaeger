@@ -645,12 +645,26 @@ async function fetchOdds(){
       ));
       res.forEach(r=>{if(Array.isArray(r))raw=raw.concat(r);});
     }
+    // Debug: vis hvad API returnerede
+    const rawCount = raw.length;
+    const withBet365 = raw.filter(m=>m.bookmakers&&m.bookmakers.length>0).length;
+    console.log(`API returnerede ${rawCount} kampe, ${withBet365} med Bet365-odds`);
+    if(rawCount===0){
+      showInfo(`API returnerede 0 kampe. Bet365 har sandsynligvis ikke odds på nogen kampe i de valgte ligaer pt. Prøv igen om nogle dage når ligaerne nærmer sig opstart.`);
+      document.getElementById('resultsArea').innerHTML='';
+      document.getElementById('miniStats').style.display='grid';
+      document.getElementById('msBets').textContent='0';
+      document.getElementById('msKampe').textContent='0 (0 fra API)';
+      document.getElementById('fetchBtn').disabled=false;
+      return;
+    }
+    showInfo(`API: ${rawCount} kampe hentet, ${withBet365} med Bet365-odds.`);
     allBets=analyzeMatches(raw);
     document.getElementById('miniStats').style.display='grid';
     document.getElementById('msBets').textContent=allBets.filter(b=>b.hasMdl).length;
-    document.getElementById('msKampe').textContent=allBets.length;
+    document.getElementById('msKampe').textContent=`${allBets.length} (${rawCount} fra API)`;
     renderResults(allBets);
-    if(!Object.keys(modelData).length)showInfo('💡 Træn modellen i sidebaren for at se value bets baseret på Dixon-Coles xG-modellen.');
+    if(!Object.keys(modelData).length)showInfo(`💡 Træn modellen i sidebaren for at se value bets. API: ${rawCount} kampe hentet.`);
   }catch(e){showErr(e.message||'Ukendt fejl.');document.getElementById('resultsArea').innerHTML='';}
   document.getElementById('fetchBtn').disabled=false;
 }
@@ -895,7 +909,7 @@ function showErr(m){const e=document.getElementById('errMsg');e.textContent='⚠
 function showInfo(m){const e=document.getElementById('infoMsg');e.textContent=m;e.style.display='';}
 </script>
 <div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:#30363D;z-index:999;user-select:none;">
-  build: 2026-07-18 12:34 (DK)
+  build: 2026-07-18 13:15 (DK)
 </div>
 </body>
 </html>
