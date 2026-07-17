@@ -640,7 +640,7 @@ async function fetchOdds(){
     for(let i=0;i<Math.min(football.length,20);i+=5){
       const batch=football.slice(i,i+5);
       const res=await Promise.all(batch.map(s=>
-        fetch(`https://api.the-odds-api.com/v4/sports/${s}/odds/?apiKey=${key}&regions=${region}&markets=h2h&oddsFormat=decimal&bookmakers=bet365`)
+        fetch(`https://api.the-odds-api.com/v4/sports/${s}/odds/?apiKey=${key}&regions=${region}&markets=h2h&oddsFormat=decimal&bookmakers=bet365&commenceTimeFrom=${new Date().toISOString()}&commenceTimeTo=${new Date(Date.now()+60*24*60*60*1000).toISOString()}`)
           .then(r=>r.ok?r.json():[]).catch(()=>[])
       ));
       res.forEach(r=>{if(Array.isArray(r))raw=raw.concat(r);});
@@ -894,5 +894,8 @@ async function deleteBetRow(id,i){if(!confirm('Slet dette bet?'))return;await de
 function showErr(m){const e=document.getElementById('errMsg');e.textContent='⚠ '+m;e.style.display='';}
 function showInfo(m){const e=document.getElementById('infoMsg');e.textContent=m;e.style.display='';}
 </script>
+<div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:#30363D;z-index:999;user-select:none;">
+  build: 2026-07-18 12:34 (DK)
+</div>
 </body>
 </html>
