@@ -239,6 +239,10 @@ input:focus, select:focus { border-color: var(--green); }
         <label><input type="checkbox" id="lg_seriea" checked> Serie A</label>
         <label><input type="checkbox" id="lg_ligue1" checked> Ligue 1</label>
         <label><input type="checkbox" id="lg_superliga" checked> Superliga 🇩🇰</label>
+        <label><input type="checkbox" id="lg_mls" checked> MLS 🇺🇸</label>
+        <label><input type="checkbox" id="lg_brasileirao" checked> Brasileirao 🇧🇷</label>
+        <label><input type="checkbox" id="lg_eredivisie" checked> Eredivisie 🇳🇱</label>
+        <label><input type="checkbox" id="lg_scottish" checked> Scottish Prem. 🏴󠁧󠁢󠁳󠁣󠁴󠁿</label>
       </div>
       <div style="margin-top:10px;">
         <select id="decayRate" style="margin-bottom:8px;">
@@ -516,6 +520,10 @@ const LEAGUE_CFG = {
   seriea:{name:'Serie A',code:'I1',type:'main'},
   ligue1:{name:'Ligue 1',code:'F1',type:'main'},
   superliga:{name:'Superliga 🇩🇰',code:'DNK',type:'extra'},
+  mls:{name:'MLS 🇺🇸',code:'MLS',type:'extra'},
+  brasileirao:{name:'Brasileirao 🇧🇷',code:'BRA',type:'extra'},
+  eredivisie:{name:'Eredivisie 🇳🇱',code:'N1',type:'main'},
+  scottish:{name:'Scottish Prem. 🏴󠁧󠁢󠁳󠁣󠁴󠁿',code:'SC0',type:'main'},
 };
 function sc(y){return String(y).slice(2)+String(y+1).slice(2);}
 
@@ -655,6 +663,10 @@ function s2l(k){k=k.toLowerCase();
   if(k.includes('italy')||k.includes('serie'))return 'seriea';
   if(k.includes('france')||k.includes('ligue'))return 'ligue1';
   if(k.includes('denmark')||k.includes('danish')||k.includes('superliga'))return 'superliga';
+  if(k.includes('mls')||k.includes('usa')||k.includes('us_soccer'))return 'mls';
+  if(k.includes('brazil')||k.includes('brasil')||k.includes('serie_a_brazil'))return 'brasileirao';
+  if(k.includes('netherlands')||k.includes('eredivisie')||k.includes('dutch'))return 'eredivisie';
+  if(k.includes('scotland')||k.includes('scottish'))return 'scottish';
   return null;
 }
 function fuzzy(name,teams){
