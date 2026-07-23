@@ -217,50 +217,6 @@ input:focus, select:focus { border-color: var(--green); }
   <aside class="sidebar">
 
     <div class="sidebar-section">
-      <div class="sidebar-label">Odds API</div>
-      <div class="field-group">
-        <input type="password" id="apiKey" placeholder="Hentes fra skyen...">
-        <select id="regionSelect">
-          <option value="eu">Europa (EU)</option>
-          <option value="uk">England (UK)</option>
-        </select>
-        <button class="btn btn-green" id="fetchBtn" onclick="fetchOdds()">🔍 Hent dagens odds</button>
-      </div>
-    </div>
-
-    <hr class="sidebar-divider">
-
-    <div class="sidebar-section">
-      <div class="sidebar-label">Model — ligatræning</div>
-      <div class="league-checks">
-        <label><input type="checkbox" id="lg_epl" checked> Premier League</label>
-        <label><input type="checkbox" id="lg_laliga" checked> La Liga</label>
-        <label><input type="checkbox" id="lg_bundesliga" checked> Bundesliga</label>
-        <label><input type="checkbox" id="lg_seriea" checked> Serie A</label>
-        <label><input type="checkbox" id="lg_ligue1" checked> Ligue 1</label>
-        <label><input type="checkbox" id="lg_superliga" checked> Superliga 🇩🇰</label>
-        <label><input type="checkbox" id="lg_mls" checked> MLS 🇺🇸</label>
-        <label><input type="checkbox" id="lg_brasileirao" checked> Brasileirao 🇧🇷</label>
-        <label><input type="checkbox" id="lg_eredivisie" checked> Eredivisie 🇳🇱</label>
-        <label><input type="checkbox" id="lg_scottish" checked> Scottish Prem. 🏴󠁧󠁢󠁳󠁣󠁴󠁿</label>
-      </div>
-      <div style="margin-top:10px;">
-        <select id="decayRate" style="margin-bottom:8px;">
-          <option value="0.003">Moderat vægtning (6 mdr.)</option>
-          <option value="0.005" selected>Høj vægtning (3-4 mdr.) ★</option>
-          <option value="0.008">Meget høj vægtning (2 mdr.)</option>
-        </select>
-        <button class="btn btn-blue" id="trainBtn" onclick="trainModel()">🧠 Træn model</button>
-      </div>
-      <div class="progress-wrap" id="progressWrap">
-        <div class="progress-label" id="progressLabel">Henter data...</div>
-        <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-      </div>
-    </div>
-
-    <hr class="sidebar-divider">
-
-    <div class="sidebar-section">
       <div class="sidebar-label">Filtrering</div>
       <div class="field-group">
         <div style="font-size:11px;color:var(--muted);">Minimum value %</div>
@@ -275,6 +231,26 @@ input:focus, select:focus { border-color: var(--green); }
       <div class="mini-stat"><div class="mini-val blue" id="msKampe">0</div><div class="mini-lbl">Kampe</div></div>
     </div>
 
+    <!-- Hidden fields needed by JS -->
+    <input type="password" id="apiKey" style="display:none;">
+    <select id="regionSelect" style="display:none;"><option value="eu">Europa (EU)</option><option value="uk">England (UK)</option></select>
+    <select id="decayRate" style="display:none;"><option value="0.003">Moderat</option><option value="0.005" selected>Høj</option><option value="0.008">Meget høj</option></select>
+    <input type="checkbox" id="lg_epl" checked style="display:none;">
+    <input type="checkbox" id="lg_laliga" checked style="display:none;">
+    <input type="checkbox" id="lg_bundesliga" checked style="display:none;">
+    <input type="checkbox" id="lg_seriea" checked style="display:none;">
+    <input type="checkbox" id="lg_ligue1" checked style="display:none;">
+    <input type="checkbox" id="lg_superliga" checked style="display:none;">
+    <input type="checkbox" id="lg_mls" checked style="display:none;">
+    <input type="checkbox" id="lg_brasileirao" checked style="display:none;">
+    <input type="checkbox" id="lg_eredivisie" checked style="display:none;">
+    <input type="checkbox" id="lg_scottish" checked style="display:none;">
+    <input type="checkbox" id="simMode" style="display:none;">
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-label" id="progressLabel">Henter data...</div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+
   </aside>
 
   <!-- MAIN -->
@@ -285,6 +261,7 @@ input:focus, select:focus { border-color: var(--green); }
       <div class="tab" onclick="showTab('model',this)">📊 Holdratings</div>
       <div class="tab" onclick="showTab('tracker',this)">📋 Tracker</div>
       <div class="tab" onclick="showTab('guide',this)">📖 Guide</div>
+      <div class="tab" onclick="showTab('admin',this)" style="margin-left:auto;color:var(--muted);font-size:12px;">⚙️ Admin</div>
     </div>
 
     <!-- BETS TAB -->
@@ -344,7 +321,7 @@ input:focus, select:focus { border-color: var(--green); }
 
       <div class="guide-section">
         <h3>Hvad er OddsJæger?</h3>
-        <p>OddsJæger bruger en matematisk model til at beregne den <strong>reelle sandsynlighed</strong> for at et fodboldhold vinder en kamp — og sammenligner den med de odds Bet365 tilbyder. Når Bet365 undervurderer et holds chancer, er der <strong>value</strong> i at spille på det.</p>
+        <p>OddsJæger bruger en matematisk model til at beregne den <strong>reelle sandsynlighed</strong> for at et fodboldhold vinder en kamp — og sammenligner den med de odds Pinnacle tilbyder. Når Pinnacle undervurderer et holds chancer, er der <strong>value</strong> i at spille på det.</p>
         <p>Det handler ikke om at forudsige vinderne af kampe. Det handler om at finde kampe hvor <strong>oddsene er forkerte</strong> i forhold til hvad statistikken siger.</p>
       </div>
 
@@ -368,7 +345,7 @@ input:focus, select:focus { border-color: var(--green); }
         </div>
         <div class="guide-step">
           <div class="step-num">5</div>
-          <div class="step-body"><strong>Sammenlignes med Bet365's odds</strong><br>Modellens sandsynlighed konverteres til "fair odds". Hvis Bet365 giver bedre odds end de fair odds, er der value — og betsit vises i appen.</div>
+          <div class="step-body"><strong>Sammenlignes med Pinnacle's odds</strong><br>Modellens sandsynlighed konverteres til "fair odds". Hvis Pinnacle giver bedre odds end de fair odds, er der value — og betsit vises i appen.</div>
         </div>
       </div>
 
@@ -377,14 +354,14 @@ input:focus, select:focus { border-color: var(--green); }
         <p>Lad os sige modellen viser dette:</p>
         <div class="guide-example">
           Arsenal vs Chelsea · Premier League<br><br>
-          🏠 Arsenal vinder · Bet365: <span class="g">2.20</span> · Model fair odds: 1.85<br>
-          🤝 Uafgjort · Bet365: 3.40 · Model fair odds: 3.60<br>
-          ✈️ Chelsea vinder · Bet365: 3.80 · Model fair odds: 4.20<br><br>
+          🏠 Arsenal vinder · Pinnacle: <span class="g">2.20</span> · Model fair odds: 1.85<br>
+          🤝 Uafgjort · Pinnacle: 3.40 · Model fair odds: 3.60<br>
+          ✈️ Chelsea vinder · Pinnacle: 3.80 · Model fair odds: 4.20<br><br>
           Model sandsynligheder: 🏠 <span class="g">54%</span> · 🤝 28% · ✈️ 24%<br>
           Forventede mål: Arsenal <span class="g">1.8</span> — Chelsea 1.1<br><br>
           <span class="y">Value: Arsenal vinder · +19% value</span>
         </div>
-        <p><strong>Hvad betyder det?</strong> Modellen mener Arsenal vinder med 54% sandsynlighed. Det svarer til fair odds på 1.85 (= 1 / 0.54). Men Bet365 giver 2.20 — det er 19% bedre end hvad modellen siger er fair. Derfor er det et value bet.</p>
+        <p><strong>Hvad betyder det?</strong> Modellen mener Arsenal vinder med 54% sandsynlighed. Det svarer til fair odds på 1.85 (= 1 / 0.54). Men Pinnacle giver 2.20 — det er 19% bedre end hvad modellen siger er fair. Derfor er det et value bet.</p>
         <p><strong>Hvorfor kan tallene virke selvmodsigende?</strong> Det er normalt at se at de forventede mål er relativt tæt (fx 1.8 mod 1.1) men at hjemmeholdet stadig er klar favorit. Det skyldes at selv en lille forskel i forventede mål giver stor forskel i vindersandsynlighed over 90 minutter.</p>
         <p><strong>Indsatsen</strong> sættes altid til 2% af din bankroll — det er den klassiske "Kelly-inspirerede" tilgang der sikrer at du ikke taber for meget på en enkelt dårlig periode.</p>
       </div>
@@ -403,6 +380,74 @@ input:focus, select:focus { border-color: var(--green); }
         <p><strong>Modellen er bedst i store ligaer</strong> med mange kampe og stabile hold. I Superligaen er datamængden mindre og modellen derfor lidt mere usikker.</p>
         <p><strong>Modellen er bagudskuende.</strong> Hold der har ændret sig markant (ny træner, mange nye spillere) kan være misvurderet de første uger.</p>
         <p><strong>Det tager tid.</strong> Statistisk skal du spille minimum 200-300 bets før du kan vurdere om modellen giver overskud. Tracker-fanen er dit vigtigste redskab.</p>
+      </div>
+
+    </div>
+
+    <!-- ADMIN TAB -->
+    <div id="tab-admin" style="display:none;">
+      <div style="background:rgba(255,82,82,0.06);border:1px solid rgba(255,82,82,0.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12px;color:var(--muted);">
+        ⚙️ Disse indstillinger håndteres automatisk af appen. Brug kun denne fane til fejlfinding eller manuel genopfriskning.
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+
+        <div class="card" style="margin-bottom:0;">
+          <h2>Odds API</h2>
+          <div class="field-group" style="margin-bottom:12px;">
+            <div style="font-size:11px;color:var(--muted);">API-nøgle (gemmes i Supabase)</div>
+            <input type="password" id="apiKeyAdmin" placeholder="Odds API nøgle..." style="width:100%;" oninput="document.getElementById('apiKey').value=this.value">
+            <div style="font-size:11px;color:var(--muted);margin-top:6px;">Region</div>
+            <select id="regionAdmin" style="width:100%;" onchange="document.getElementById('regionSelect').value=this.value">
+              <option value="eu">Europa (EU)</option>
+              <option value="uk">England (UK)</option>
+            </select>
+          </div>
+          <button class="btn btn-green" id="fetchBtn" onclick="fetchOdds()" style="width:100%;">🔄 Genopfrisk odds nu</button>
+        </div>
+
+        <div class="card" style="margin-bottom:0;">
+          <h2>🧪 Simuleringstilstand</h2>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Genererer fiktive testkampe baseret på modellens holdratings. Slå fra når ligaerne starter.</div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;margin-bottom:12px;">
+            <input type="checkbox" id="simModeAdmin" onchange="document.getElementById('simMode').checked=this.checked;toggleSimMode();"> Aktiver simulering
+          </label>
+          <button class="btn btn-outline" id="simBtn" onclick="runSimulation()" style="border-color:var(--yellow);color:var(--yellow);display:none;width:100%;">⚗️ Kør simulering</button>
+        </div>
+
+      </div>
+
+      <div class="card">
+        <h2>🧠 Modeltræning</h2>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Modellen genoptrænes automatisk hvis den er mere end 7 dage gammel. Du kan også genoptræne manuelt her.</div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.8px;">Ligaer</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_epl_a" checked onchange="document.getElementById('lg_epl').checked=this.checked"> Premier League</label>
+            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_laliga_a" checked onchange="document.getElementById('lg_laliga').checked=this.checked"> La Liga</label>
+            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_bundesliga_a" checked onchange="document.getElementById('lg_bundesliga').checked=this.checked"> Bundesliga</label>
+            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_seriea_a" checked onchange="document.getElementById('lg_seriea').checked=this.checked"> Serie A</label>
+            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_ligue1_a" checked onchange="document.getElementById('lg_ligue1').checked=this.checked"> Ligue 1</label>
+            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_superliga_a" checked onchange="document.getElementById('lg_superliga').checked=this.checked"> Superliga 🇩🇰</label>
+            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_mls_a" checked onchange="document.getElementById('lg_mls').checked=this.checked"> MLS 🇺🇸</label>
+            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_brasileirao_a" checked onchange="document.getElementById('lg_brasileirao').checked=this.checked"> Brasileirao 🇧🇷</label>
+            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_eredivisie_a" checked onchange="document.getElementById('lg_eredivisie').checked=this.checked"> Eredivisie 🇳🇱</label>
+            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_scottish_a" checked onchange="document.getElementById('lg_scottish').checked=this.checked"> Scottish Prem. 🏴󠁧󠁢󠁳󠁣󠁴󠁿</label>
+          </div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.8px;">Vægtning af nylige kampe</div>
+          <select id="decayRateAdmin" style="width:100%;" onchange="document.getElementById('decayRate').value=this.value">
+            <option value="0.003">Moderat (6 mdr. half-life)</option>
+            <option value="0.005" selected>Høj (3-4 mdr.) — anbefalet</option>
+            <option value="0.008">Meget høj (2 mdr.)</option>
+          </select>
+        </div>
+        <button class="btn btn-blue" id="trainBtn" onclick="trainModel()" style="width:100%;">🔄 Genoptræn model nu</button>
+        <div class="progress-wrap" id="progressWrap" style="margin-top:12px;">
+          <div class="progress-label" id="progressLabel">Henter data...</div>
+          <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+        </div>
       </div>
 
     </div>
@@ -476,26 +521,55 @@ async function deleteBet(id) { try{await sbFetch(`bets?id=eq.${id}`,{method:'DEL
 // ── STATE ─────────────────────────────────────────────
 let allBets = [], modelData = {}, trackerBets = [];
 
-// Init
+// Init — kør alt automatisk
 (async () => {
   await loadApiKey();
-  try {
-    const m = localStorage.getItem('oj_model');
-    if (m) {
-      modelData = JSON.parse(m);
-      const tc = Object.values(modelData).reduce((s,l)=>s+Object.keys(l.teams).length,0);
-      if (tc>0) { document.getElementById('modelDot').className='status-dot on'; document.getElementById('modelStatus').textContent=`Model: ${tc} hold`; }
-    }
-  } catch(e){}
   await loadBets();
   renderTracker();
+
+  // Forsøg at indlæse gemt model
+  let modelAge = Infinity;
+  try {
+    const saved = localStorage.getItem('oj_model');
+    const savedTime = localStorage.getItem('oj_model_time');
+    if (saved) {
+      modelData = JSON.parse(saved);
+      const tc = Object.values(modelData).reduce((s,l)=>s+Object.keys(l.teams).length,0);
+      if (tc>0) {
+        document.getElementById('modelDot').className='status-dot on';
+        document.getElementById('modelStatus').textContent=`Model: ${tc} hold`;
+        modelAge = savedTime ? (Date.now() - parseInt(savedTime)) / (1000*60*60*24) : Infinity;
+      }
+    }
+  } catch(e){}
+
+  // Træn model automatisk hvis den ikke findes eller er > 7 dage gammel
+  const needsTrain = Object.keys(modelData).length === 0 || modelAge > 7;
+  if (needsTrain) {
+    showStatus('Træner model automatisk...');
+    await trainModel();
+  }
+
+  // Hent odds automatisk
+  const key = document.getElementById('apiKey').value.trim();
+  if (key) {
+    showStatus('Henter odds...');
+    await fetchOdds();
+  } else {
+    showInfo('Indtast din Odds API-nøgle for at hente odds automatisk.');
+  }
 })();
+
+function showStatus(msg) {
+  document.getElementById('infoMsg').textContent = msg;
+  document.getElementById('infoMsg').style.display = '';
+}
 
 // ── TABS ──────────────────────────────────────────────
 function showTab(name, el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  ['bets','model','tracker','guide'].forEach(t=>{ document.getElementById('tab-'+t).style.display=t===name?'':'none'; });
+  ['bets','model','tracker','guide','admin'].forEach(t=>{ document.getElementById('tab-'+t).style.display=t===name?'':'none'; });
   if(name==='tracker'){loadBets().then(()=>renderTracker());}
   if(name==='model') renderModelTab();
 }
@@ -615,72 +689,119 @@ async function trainModel(){
   document.getElementById('modelDot').className=tc>0?'status-dot on':'status-dot';
   document.getElementById('modelStatus').textContent=tc>0?`Model: ${tc} hold, ${lc} ligaer`:'Model: ingen data';
   btn.disabled=false;pw.style.display='none';
-  if(tc>0){try{localStorage.setItem('oj_model',JSON.stringify(modelData));}catch(e){}
+  if(tc>0){try{localStorage.setItem('oj_model',JSON.stringify(modelData));localStorage.setItem('oj_model_time',Date.now().toString());}catch(e){}
     if(allBets.length>0)renderResults(allBets);renderModelTab();}
   else{alert('Ingen data hentet — proxyen kan have midlertidige problemer. Prøv igen om lidt.');}
 }
 
-// ── FETCH ODDS (Bet365 only) ──────────────────────────
-function isBet365(bm){return bm.key==='bet365'||bm.title?.toLowerCase().includes('bet365');}
+// ── FETCH ODDS (Pinnacle only) ──────────────────────────
+function isPinnacle(bm){return bm.key==='pinnacle'||bm.title?.toLowerCase().includes('pinnacle');}
 
 async function fetchOdds(){
   const key=document.getElementById('apiKey').value.trim();
-  if(!key){showErr('Indtast din Odds API-nøgle.');return;}
-  await saveApiKey(key);
-  const region=document.getElementById('regionSelect').value;
-  document.getElementById('fetchBtn').disabled=true;
-  document.getElementById('resultsArea').innerHTML='<div class="loading"><div class="spinner"></div>Henter Bet365-odds...</div>';
-  document.getElementById('errMsg').style.display='none';document.getElementById('infoMsg').style.display='none';
-  try{
-    const sr=await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${key}`);
-    if(!sr.ok)throw new Error('Ugyldig API-nøgle.');
-    const sports=await sr.json();
-    const football=sports.filter(s=>s.group==='Soccer'&&s.active).map(s=>s.key);
-    let raw=[];
-    for(let i=0;i<Math.min(football.length,20);i+=5){
-      const batch=football.slice(i,i+5);
-      const res=await Promise.all(batch.map(s=>
-        fetch(`https://api.the-odds-api.com/v4/sports/${s}/odds/?apiKey=${key}&regions=${region}&markets=h2h&oddsFormat=decimal&bookmakers=bet365`)
+  document.getElementById('fetchBtn') && (document.getElementById('fetchBtn').disabled=true);
+  document.getElementById('resultsArea').innerHTML='<div class="loading"><div class="spinner"></div>Henter odds fra Supabase...</div>';
+  document.getElementById('errMsg').style.display='none';
+  document.getElementById('infoMsg').style.display='none';
+
+  try {
+    // Hent cached odds fra Supabase (opdateres automatisk hver nat)
+    const cached = await sbFetch('cached_odds?select=*&order=commence_time.asc');
+
+    // Hent last_updated timestamp
+    let lastUpdated = null;
+    try {
+      const ts = await sbFetch('settings?key=eq.last_updated&select=value');
+      if (ts.length > 0) lastUpdated = new Date(ts[0].value);
+    } catch(e) {}
+
+    if (!cached || cached.length === 0) {
+      // Ingen cached data — prøv direkte API kald som fallback
+      if (!key) {
+        showInfo('Ingen odds i Supabase endnu. Odds opdateres automatisk hver nat kl. 03:00. Første opdatering sker i nat.');
+        document.getElementById('resultsArea').innerHTML = '<div class="empty"><div class="ico">⏰</div><p>Odds opdateres automatisk hver nat kl. 03:00.<br>Første opdatering sker i nat.</p></div>';
+        document.getElementById('fetchBtn') && (document.getElementById('fetchBtn').disabled=false);
+        return;
+      }
+      showInfo('Ingen cached odds — henter direkte fra API...');
+      await fetchOddsDirectly(key);
+      return;
+    }
+
+    // Konverter cached format til det format analyzeMatches forventer
+    const raw = cached.map(r => ({
+      id: r.match_id,
+      home_team: r.home_team,
+      away_team: r.away_team,
+      sport_key: r.sport_key,
+      commence_time: r.commence_time,
+      bookmakers: r.bookmakers
+    }));
+
+    allBets = analyzeMatches(raw);
+    document.getElementById('miniStats').style.display = 'grid';
+    document.getElementById('msBets').textContent = allBets.filter(b=>b.hasMdl).length;
+    document.getElementById('msKampe').textContent = `${raw.length} (${allBets.length} med value)`;
+
+    const updatedStr = lastUpdated
+      ? `Sidst opdateret: ${lastUpdated.toLocaleDateString('da-DK')} kl. ${lastUpdated.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'})}`
+      : 'Opdateres automatisk hver nat kl. 03:00';
+    showInfo(`☁ ${raw.length} kampe hentet fra Supabase — ${updatedStr}`);
+
+    renderResults(allBets);
+    if(!Object.keys(modelData).length) showInfo('💡 Modellen trænes automatisk — vent venligst...');
+
+  } catch(e) {
+    showErr('Kunne ikke hente odds: ' + (e.message||e));
+    document.getElementById('resultsArea').innerHTML = '';
+  }
+  document.getElementById('fetchBtn') && (document.getElementById('fetchBtn').disabled=false);
+}
+
+async function fetchOddsDirectly(key) {
+  // Direkte API-kald som fallback
+  const region = document.getElementById('regionSelect')?.value || 'eu';
+  try {
+    await saveApiKey(key);
+    const sr = await fetch(`https://api.the-odds-api.com/v4/sports/?apiKey=${key}`);
+    if (!sr.ok) throw new Error('Ugyldig API-nøgle.');
+    const sports = await sr.json();
+    const football = sports.filter(s=>s.group==='Soccer'&&s.active).map(s=>s.key);
+    let raw = [];
+    for (let i=0; i<Math.min(football.length,20); i+=5) {
+      const batch = football.slice(i,i+5);
+      const res = await Promise.all(batch.map(s=>
+        fetch(`https://api.the-odds-api.com/v4/sports/${s}/odds/?apiKey=${key}&regions=${region}&markets=h2h&oddsFormat=decimal&bookmakers=pinnacle`)
           .then(r=>r.ok?r.json():[]).catch(()=>[])
       ));
       res.forEach(r=>{if(Array.isArray(r))raw=raw.concat(r);});
     }
 
-    // Hvis Bet365 ikke returnerer noget, prøv uden bookmaker-filter
-    if(raw.length===0){
-      showInfo('Bet365 har ingen odds tilgængelige pt. Henter alle bookmakers for at vise tilgængelige kampe...');
-      for(let i=0;i<Math.min(football.length,20);i+=5){
-        const batch=football.slice(i,i+5);
-        const res=await Promise.all(batch.map(s=>
+    // Fallback uden Pinnacle filter hvis ingen resultater
+    if (raw.length === 0) {
+      for (let i=0; i<Math.min(football.length,20); i+=5) {
+        const batch = football.slice(i,i+5);
+        const res = await Promise.all(batch.map(s=>
           fetch(`https://api.the-odds-api.com/v4/sports/${s}/odds/?apiKey=${key}&regions=${region}&markets=h2h&oddsFormat=decimal`)
             .then(r=>r.ok?r.json():[]).catch(()=>[])
         ));
         res.forEach(r=>{if(Array.isArray(r))raw=raw.concat(r);});
       }
     }
-    // Debug: vis hvad API returnerede
+
     const rawCount = raw.length;
-    const withBet365 = raw.filter(m=>m.bookmakers&&m.bookmakers.length>0).length;
-    console.log(`API returnerede ${rawCount} kampe, ${withBet365} med Bet365-odds`);
-    if(rawCount===0){
-      showInfo(`API returnerede 0 kampe. Bet365 har sandsynligvis ikke odds på nogen kampe i de valgte ligaer pt. Prøv igen om nogle dage når ligaerne nærmer sig opstart.`);
-      document.getElementById('resultsArea').innerHTML='';
-      document.getElementById('miniStats').style.display='grid';
-      document.getElementById('msBets').textContent='0';
-      document.getElementById('msKampe').textContent='0 (0 fra API)';
-      document.getElementById('fetchBtn').disabled=false;
-      return;
-    }
-    showInfo(`API: ${rawCount} kampe hentet, ${withBet365} med Bet365-odds.`);
-    allBets=analyzeMatches(raw);
-    document.getElementById('miniStats').style.display='grid';
-    document.getElementById('msBets').textContent=allBets.filter(b=>b.hasMdl).length;
-    document.getElementById('msKampe').textContent=`${allBets.length} (${rawCount} fra API)`;
+    showInfo(`API: ${rawCount} kampe hentet direkte.`);
+    allBets = analyzeMatches(raw);
+    document.getElementById('miniStats').style.display = 'grid';
+    document.getElementById('msBets').textContent = allBets.filter(b=>b.hasMdl).length;
+    document.getElementById('msKampe').textContent = `${allBets.length} (${rawCount} fra API)`;
     renderResults(allBets);
-    if(!Object.keys(modelData).length)showInfo(`💡 Træn modellen i sidebaren for at se value bets. API: ${rawCount} kampe hentet.`);
-  }catch(e){showErr(e.message||'Ukendt fejl.');document.getElementById('resultsArea').innerHTML='';}
-  document.getElementById('fetchBtn').disabled=false;
+  } catch(e) {
+    showErr(e.message||'API fejl');
+  }
+  document.getElementById('fetchBtn') && (document.getElementById('fetchBtn').disabled=false);
 }
+
 
 // ── SPORT → LEAGUE ────────────────────────────────────
 function s2l(k){k=k.toLowerCase();
@@ -707,8 +828,8 @@ function analyzeMatches(matches){
   const minVal=parseFloat(document.getElementById('minValue').value)||3;
   const out=[];
   matches.forEach(m=>{
-    // Get Bet365 odds only
-    const b365=m.bookmakers?.find(isBet365);
+    // Get Pinnacle odds only
+    const b365=m.bookmakers?.find(isPinnacle);
     if(!b365)return;
     const odds={};
     b365.markets?.forEach(mkt=>{if(mkt.key!=='h2h')return;mkt.outcomes?.forEach(o=>{odds[o.name]=o.price;});});
@@ -802,11 +923,11 @@ function renderResults(bets){
       explanation=`
         <div class="explanation">
           Modellen mener <strong>${teamLabel==='uafgjort'?'kampen ender uafgjort':''+teamLabel+' vinder'}</strong> med <span class="highlight">${pct}% sandsynlighed</span> — svarende til fair odds på <strong>${top.fair.toFixed(2)}</strong>.<br>
-          Bet365 tilbyder <strong>${top.price.toFixed(2)}</strong>, som er <span class="highlight">${valueRounded}% bedre</span> end modellens fair odds. Det er value.<br>
+          Pinnacle tilbyder <strong>${top.price.toFixed(2)}</strong>, som er <span class="highlight">${valueRounded}% bedre</span> end modellens fair odds. Det er value.<br>
           <br>
           Forventede mål i kampen: <strong>${b.home} ${b.modelPred.lH.toFixed(2)}</strong> — <strong>${b.away} ${b.modelPred.lA.toFixed(2)}</strong><br>
           Anbefalet indsats (2% af bankroll): <span class="stake">${stake} kr.</span>
-          ${isStrong?'<br><br>⭐ <strong>Stærkt signal</strong> — modellen er markant uenig med Bet365.':''}
+          ${isStrong?'<br><br>⭐ <strong>Stærkt signal</strong> — modellen er markant uenig med Pinnacle.':''}
         </div>`;
     }
 
@@ -833,7 +954,7 @@ function renderResults(bets){
   }).join('');
 
   document.getElementById('resultsArea').innerHTML=`
-    <div class="section-title">Value bets — Bet365 <span class="pill">${bets.length}</span></div>
+    <div class="section-title">Value bets — Pinnacle <span class="pill">${bets.length}</span></div>
     ${html}`;
 }
 
@@ -920,9 +1041,104 @@ async function updateBetResult(id,val,i){trackerBets[i].result=val;await updateB
 async function deleteBetRow(id,i){if(!confirm('Slet dette bet?'))return;await deleteBet(id);trackerBets.splice(i,1);renderTracker();}
 function showErr(m){const e=document.getElementById('errMsg');e.textContent='⚠ '+m;e.style.display='';}
 function showInfo(m){const e=document.getElementById('infoMsg');e.textContent=m;e.style.display='';}
+// ── SIMULATION MODE ───────────────────────────────────
+function toggleSimMode() {
+  const on = document.getElementById('simMode').checked;
+  document.getElementById('simBtn').style.display = on ? '' : 'none';
+  document.getElementById('fetchBtn').style.opacity = on ? '0.4' : '1';
+  document.getElementById('fetchBtn').title = on ? 'Slå simulering fra for at hente rigtige odds' : '';
+}
+
+function runSimulation() {
+  if (!Object.keys(modelData).length) {
+    alert('Træn modellen først — simuleringen bruger modellens holdratings til at generere realistiske kampe.');
+    return;
+  }
+
+  document.getElementById('resultsArea').innerHTML = '<div class="loading"><div class="spinner"></div>Genererer simulerede kampe...</div>';
+  document.getElementById('errMsg').style.display = 'none';
+
+  // Pick random matchups from model
+  const simMatches = [];
+  const leagues = Object.keys(modelData);
+
+  leagues.forEach(lk => {
+    const mdl = modelData[lk];
+    const teams = Object.keys(mdl.teams);
+    if (teams.length < 2) return;
+
+    // Generate 3-5 random matchups per league
+    const numMatches = 3 + Math.floor(Math.random() * 3);
+    const used = new Set();
+
+    for (let i = 0; i < numMatches; i++) {
+      let home, away, attempts = 0;
+      do {
+        home = teams[Math.floor(Math.random() * teams.length)];
+        away = teams[Math.floor(Math.random() * teams.length)];
+        attempts++;
+      } while ((home === away || used.has(home + away)) && attempts < 20);
+      if (home === away) continue;
+      used.add(home + away);
+
+      // Predict with model
+      const pred = predict(home, away, mdl);
+      if (!pred) continue;
+
+      // Generate realistic Pinnacle-style odds with margin (~5%)
+      const margin = 1.05;
+      const rawH = 1 / pred.pH, rawD = 1 / pred.pD, rawA = 1 / pred.pA;
+      // Add small random bookmaker variation (±8%)
+      const vary = () => 0.94 + Math.random() * 0.12;
+      const pinnacleH = parseFloat((rawH * vary() / margin).toFixed(2));
+      const pinnacleD = parseFloat((rawD * vary() / margin).toFixed(2));
+      const pinnacleA = parseFloat((rawA * vary() / margin).toFixed(2));
+
+      // Kick off time: random within next 30 days
+      const kickoff = new Date(Date.now() + (1 + Math.random() * 29) * 86400000);
+
+      simMatches.push({
+        id: `sim_${lk}_${i}`,
+        home_team: home,
+        away_team: away,
+        sport_key: `soccer_sim_${lk}`,
+        commence_time: kickoff.toISOString(),
+        bookmakers: [{
+          key: 'pinnacle',
+          title: 'Pinnacle',
+          markets: [{
+            key: 'h2h',
+            outcomes: [
+              { name: home, price: pinnacleH },
+              { name: 'Draw', price: pinnacleD },
+              { name: away, price: pinnacleA }
+            ]
+          }]
+        }]
+      });
+    }
+  });
+
+  if (!simMatches.length) {
+    document.getElementById('resultsArea').innerHTML = '<div class="empty"><div class="ico">🧪</div><p>Ingen simulerede kampe genereret.<br>Træn modellen med mindst én liga først.</p></div>';
+    return;
+  }
+
+  // Banner
+  document.getElementById('infoMsg').textContent = `🧪 SIMULERINGSTILSTAND — ${simMatches.length} fiktive testkampe genereret. Ikke rigtige odds.`;
+  document.getElementById('infoMsg').style.display = '';
+
+  allBets = analyzeMatches(simMatches);
+  document.getElementById('miniStats').style.display = 'grid';
+  document.getElementById('msBets').textContent = allBets.filter(b => b.hasMdl).length;
+  document.getElementById('msKampe').textContent = `${simMatches.length} (simuleret)`;
+  renderResults(allBets);
+}
+
+
 </script>
 <div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:#30363D;z-index:999;user-select:none;">
-  build: 2026-07-18 13:25 (DK)
+  build: 2026-07-23 21:30 (DK)
 </div>
 </body>
 </html>
