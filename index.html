@@ -521,44 +521,45 @@ async function deleteBet(id) { try{await sbFetch(`bets?id=eq.${id}`,{method:'DEL
 // ── STATE ─────────────────────────────────────────────
 let allBets = [], modelData = {}, trackerBets = [];
 
-// Init — kør alt automatisk
+// Init — hent alt fra Supabase automatisk
 (async () => {
   await loadApiKey();
   await loadBets();
   renderTracker();
 
-  // Forsøg at indlæse gemt model
-  let modelAge = Infinity;
-  try {
-    const saved = localStorage.getItem('oj_model');
-    const savedTime = localStorage.getItem('oj_model_time');
-    if (saved) {
-      modelData = JSON.parse(saved);
-      const tc = Object.values(modelData).reduce((s,l)=>s+Object.keys(l.teams).length,0);
-      if (tc>0) {
-        document.getElementById('modelDot').className='status-dot on';
-        document.getElementById('modelStatus').textContent=`Model: ${tc} hold`;
-        modelAge = savedTime ? (Date.now() - parseInt(savedTime)) / (1000*60*60*24) : Infinity;
-      }
-    }
-  } catch(e){}
+  // Hent modelratings fra Supabase
+  await loadModelFromSupabase();
 
-  // Træn model automatisk hvis den ikke findes eller er > 7 dage gammel
-  const needsTrain = Object.keys(modelData).length === 0 || modelAge > 7;
-  if (needsTrain) {
-    showStatus('Træner model automatisk...');
-    await trainModel();
-  }
-
-  // Hent odds automatisk
-  const key = document.getElementById('apiKey').value.trim();
-  if (key) {
-    showStatus('Henter odds...');
-    await fetchOdds();
-  } else {
-    showInfo('Indtast din Odds API-nøgle for at hente odds automatisk.');
-  }
+  // Hent odds fra Supabase cache
+  await fetchOdds();
 })();
+
+async function loadModelFromSupabase() {
+  try {
+    const data = await sbFetch('model_ratings?select=*');
+    if (!data || data.length === 0) {
+      document.getElementById('modelDot').className = 'status-dot';
+      document.getElementById('modelStatus').textContent = 'Model: opdateres i nat';
+      return;
+    }
+    modelData = {};
+    data.forEach(row => {
+      modelData[row.league_key] = {
+        name: row.league_name,
+        teams: row.teams,
+        homeAdv: row.home_adv,
+        avgH: row.avg_h,
+        avgA: row.avg_a,
+        matchCount: row.match_count,
+      };
+    });
+    const tc = data.reduce((s, r) => s + Object.keys(r.teams).length, 0);
+    document.getElementById('modelDot').className = 'status-dot on';
+    document.getElementById('modelStatus').textContent = `Model: ${tc} hold, ${data.length} ligaer`;
+  } catch(e) {
+    document.getElementById('modelStatus').textContent = 'Model: fejl ved indlæsning';
+  }
+}
 
 function showStatus(msg) {
   document.getElementById('infoMsg').textContent = msg;
@@ -1138,7 +1139,7 @@ function runSimulation() {
 
 </script>
 <div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:#30363D;z-index:999;user-select:none;">
-  build: 2026-07-23 21:30 (DK)
+  build: 2026-07-23 23:45 (DK)
 </div>
 </body>
 </html>
