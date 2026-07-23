@@ -868,6 +868,11 @@ function analyzeMatches(matches){
     });
   });
   out.sort((a,b)=>{
+    // Først sortér efter dato (snarest øverst)
+    const dateA = new Date(a.start).getTime();
+    const dateB = new Date(b.start).getTime();
+    if (dateA !== dateB) return dateA - dateB;
+    // Ved samme dato sortér efter value (højest øverst)
     const av=Math.max(...a.mvBets.map(v=>v.mv));
     const bv=Math.max(...b.mvBets.map(v=>v.mv));
     return bv-av;
@@ -1139,7 +1144,7 @@ function runSimulation() {
 
 </script>
 <div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:#30363D;z-index:999;user-select:none;">
-  build: 2026-07-23 23:45 (DK)
+  build: 2026-07-23 23:50 (DK)
 </div>
 </body>
 </html>
