@@ -48,18 +48,18 @@ header {
 @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.2} }
 
 /* LAYOUT */
-.layout { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 56px); width: 100%; }
-.sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 20px 16px; position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto; }
-.main { padding: 24px; width: 100%; box-sizing: border-box; }
+.layout { display: flex; flex-direction: column; min-height: calc(100vh - 56px); }
+.sidebar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; position: sticky; top: 56px; z-index: 50; }
+.main { padding: 24px; width: 100%; box-sizing: border-box; max-width: 1200px; margin: 0 auto; }
 
 /* SIDEBAR */
-.sidebar-section { margin-bottom: 24px; }
-.sidebar-label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 10px; }
+.sidebar-section { display: flex; align-items: center; gap: 10px; margin-bottom: 0; }
+.sidebar-label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; white-space: nowrap; }
 .field-group { display: flex; flex-direction: column; gap: 8px; }
 input[type="text"], input[type="number"], select, input[type="password"] {
   background: var(--card); border: 1px solid var(--border); color: var(--text);
   font-family: var(--mono); font-size: 12px; padding: 8px 10px; border-radius: 6px;
-  outline: none; width: 100%; transition: border-color 0.15s;
+  outline: none; width: auto; transition: border-color 0.15s;
 }
 input:focus, select:focus { border-color: var(--green); }
 .btn { font-family: var(--sans); font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: 6px; border: none; cursor: pointer; transition: opacity 0.15s; width: 100%; text-align: center; }
@@ -70,15 +70,15 @@ input:focus, select:focus { border-color: var(--green); }
 .btn-blue:hover:not(:disabled) { opacity: 0.88; }
 .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
 .btn-outline:hover { border-color: var(--green); color: var(--green); }
-.sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+.sidebar-divider { border: none; border-left: 1px solid var(--border); height: 28px; margin: 0 4px; }
 .progress-wrap { margin-top: 10px; display: none; }
 .progress-label { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .progress-track { height: 4px; background: var(--card); border-radius: 2px; overflow: hidden; }
 .progress-fill { height: 100%; background: linear-gradient(90deg, var(--green-dim), var(--green)); border-radius: 2px; transition: width 0.4s ease; }
 .league-checks { display: flex; flex-direction: column; gap: 6px; }
 .league-checks label { font-size: 12px; color: var(--text); display: flex; align-items: center; gap: 7px; cursor: pointer; }
-.mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-.mini-stat { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px; }
+.mini-stats { display: flex; gap: 12px; margin-top: 0; }
+.mini-stat { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; display: flex; align-items: center; gap: 8px; }
 .mini-val { font-family: var(--mono); font-size: 18px; font-weight: 600; color: var(--green); }
 .mini-val.blue { color: var(--blue); }
 .mini-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
@@ -198,7 +198,7 @@ input:focus, select:focus { border-color: var(--green); }
 <body>
 
 <header>
-  <div class="logo"><span class="odds">Odds</span><span class="jaeger">Jæger</span></div>
+  <div style="display:flex;align-items:center;gap:14px;"><div class="logo"><span class="odds">Odds</span><span class="jaeger">Jæger</span></div><div style="font-size:10px;font-family:var(--mono);color:rgba(255,255,255,0.35);">build: 2026-07-29 00:31 (DK)</div></div>
   <div class="header-status">
     <div class="status-chip">
       <div class="status-dot" id="modelDot"></div>
@@ -216,15 +216,9 @@ input:focus, select:focus { border-color: var(--green); }
   <!-- SIDEBAR -->
   <aside class="sidebar">
 
-    <div class="sidebar-section">
-      <div class="sidebar-label">Filtrering</div>
-      <div class="field-group">
-        <div style="font-size:11px;color:var(--muted);">Minimum value %</div>
-        <input type="number" id="minValue" value="3" min="0" max="30" style="width:100%;">
-        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Bankroll (kr.)</div>
-        <input type="number" id="bankroll" value="10000" style="width:100%;">
-      </div>
-    </div>
+    <!-- minValue and bankroll now in Indstillinger tab -->
+    <input type="number" id="minValue" value="3" min="0" max="30" style="display:none;">
+    <input type="number" id="bankroll" value="10000" style="display:none;">
 
     <div class="mini-stats" id="miniStats" style="display:none;">
       <div class="mini-stat"><div class="mini-val" id="msBets">0</div><div class="mini-lbl">Model bets</div></div>
@@ -264,6 +258,8 @@ input:focus, select:focus { border-color: var(--green); }
       <div class="tab" onclick="showTab('model',this)">📊 Holdratings</div>
       <div class="tab" onclick="showTab('tracker',this)">📋 Tracker</div>
       <div class="tab" onclick="showTab('guide',this)">📖 Guide</div>
+      <div class="tab" onclick="showTab('bankroll',this)">💰 Bankroll</div>
+      <div class="tab" onclick="showTab('indstillinger',this)">⚙️ Indstillinger</div>
       
     </div>
 
@@ -387,6 +383,65 @@ input:focus, select:focus { border-color: var(--green); }
 
     </div>
 
+
+    <!-- BANKROLL TAB -->
+    <div id="tab-bankroll" style="display:none;">
+      <div class="stats-grid" style="margin-bottom:24px;">
+        <div class="stat-box"><div class="stat-val" id="brCurrent">-</div><div class="stat-lbl">Nuværende bankroll</div></div>
+        <div class="stat-box"><div class="stat-val" id="brStart">-</div><div class="stat-lbl">Startbankroll</div></div>
+        <div class="stat-box"><div class="stat-val" id="brROI">-</div><div class="stat-lbl">ROI</div></div>
+        <div class="stat-box"><div class="stat-val" id="brPL">-</div><div class="stat-lbl">Profit/Tab</div></div>
+        <div class="stat-box"><div class="stat-val" id="brWinRate">-</div><div class="stat-lbl">Hit rate</div></div>
+      </div>
+      <div class="card">
+        <h2>Bankroll udvikling</h2>
+        <div id="bankrollChart" style="position:relative;height:200px;margin-top:8px;">
+          <canvas id="brCanvas" style="width:100%;height:200px;"></canvas>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6;">
+          Bankrollen beregnes automatisk ud fra dine loggede bets i Tracker-fanen.<br>
+          Sæt din startbankroll under <strong>⚙️ Indstillinger</strong>.
+        </div>
+      </div>
+    </div>
+
+    <!-- INDSTILLINGER TAB -->
+    <div id="tab-indstillinger" style="display:none;">
+      <div class="card" style="max-width:500px;">
+        <h2>Betting indstillinger</h2>
+        <div style="display:flex;flex-direction:column;gap:20px;margin-top:4px;">
+
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;">Startbankroll (kr.)</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5;">Den bankroll du starter med. Bruges til at beregne din nuværende bankroll og ROI i Bankroll-fanen.</div>
+            <input type="number" id="settingBankroll" value="10000" min="100" style="width:160px;" oninput="saveSettings()">
+          </div>
+
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;">Minimum value %</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5;">Bets med lavere value end denne grænse vises ikke. Sæt lavt (1-2%) for at se alle signaler, højt (5-10%) for kun de stærkeste.</div>
+            <input type="number" id="settingMinValue" value="3" min="0" max="30" style="width:100px;" oninput="saveSettings()">
+            <span style="font-size:12px;color:var(--muted);margin-left:6px;">%</span>
+          </div>
+
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;">Indsats per bet</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5;">Hvor stor en andel af bankrollen du sætter per bet. 2% er den klassiske anbefalede Kelly-inspirerede tilgang.</div>
+            <select id="settingStakePct" onchange="saveSettings()">
+              <option value="1">1% af bankroll</option>
+              <option value="2" selected>2% af bankroll (anbefalet)</option>
+              <option value="3">3% af bankroll</option>
+              <option value="5">5% af bankroll</option>
+            </select>
+          </div>
+
+        </div>
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted);">
+          Indstillinger gemmes automatisk i din browser.
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -458,6 +513,7 @@ let allBets = [], modelData = {}, trackerBets = [];
 
 // Init — hent alt fra Supabase automatisk
 (async () => {
+  loadSettings();
   await loadApiKey();
   await loadBets();
   renderTracker();
@@ -505,8 +561,10 @@ function showStatus(msg) {
 function showTab(name, el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  ['bets','model','tracker','guide'].forEach(t=>{ document.getElementById('tab-'+t).style.display=t===name?'':'none'; });
+  ['bets','model','tracker','guide','bankroll','indstillinger'].forEach(t=>{ const el=document.getElementById('tab-'+t); if(el) el.style.display=t===name?'':'none'; });
   if(name==='tracker'){loadBets().then(()=>renderTracker());}
+  if(name==='bankroll'){loadBets().then(()=>renderBankrollTab());}
+  if(name==='indstillinger') loadSettings();
   if(name==='model') renderModelTab();
 }
 
@@ -1021,6 +1079,138 @@ async function logBet(){
 }
 async function updateBetResult(id,val,i){trackerBets[i].result=val;await updateBet(id,val);renderTracker();}
 async function deleteBetRow(id,i){if(!confirm('Slet dette bet?'))return;await deleteBet(id);trackerBets.splice(i,1);renderTracker();}
+
+// ── INDSTILLINGER ─────────────────────────────────
+function loadSettings() {
+  const s = JSON.parse(localStorage.getItem('oj_settings') || '{}');
+  const bankroll = s.bankroll || 10000;
+  const minValue = s.minValue || 3;
+  const stakePct = s.stakePct || 2;
+
+  document.getElementById('bankroll').value = bankroll;
+  document.getElementById('minValue').value = minValue;
+  document.getElementById('settingBankroll') && (document.getElementById('settingBankroll').value = bankroll);
+  document.getElementById('settingMinValue') && (document.getElementById('settingMinValue').value = minValue);
+  document.getElementById('settingStakePct') && (document.getElementById('settingStakePct').value = stakePct);
+}
+
+function saveSettings() {
+  const bankroll = parseFloat(document.getElementById('settingBankroll')?.value) || 10000;
+  const minValue = parseFloat(document.getElementById('settingMinValue')?.value) || 3;
+  const stakePct = parseFloat(document.getElementById('settingStakePct')?.value) || 2;
+  localStorage.setItem('oj_settings', JSON.stringify({ bankroll, minValue, stakePct }));
+  document.getElementById('bankroll').value = bankroll;
+  document.getElementById('minValue').value = minValue;
+}
+
+// ── BANKROLL FANE ──────────────────────────────────
+function renderBankrollTab() {
+  const s = JSON.parse(localStorage.getItem('oj_settings') || '{}');
+  const startBankroll = s.bankroll || 10000;
+  const stakePct = (s.stakePct || 2) / 100;
+
+  let bankroll = startBankroll;
+  const history = [startBankroll];
+  let wins = 0, losses = 0, pending = 0;
+
+  const settled = trackerBets.filter(b => b.result !== 'pending').reverse();
+  for (const b of settled) {
+    if (b.result === 'win') {
+      bankroll += b.stake * b.odds - b.stake;
+      wins++;
+    } else if (b.result === 'loss') {
+      bankroll -= b.stake;
+      losses++;
+    }
+    history.push(Math.round(bankroll));
+  }
+  pending = trackerBets.filter(b => b.result === 'pending').length;
+
+  const pl = bankroll - startBankroll;
+  const roi = settled.length > 0 ? (pl / (settled.reduce((s,b) => s+b.stake, 0) || 1)) * 100 : 0;
+  const hitRate = settled.length > 0 ? (wins / settled.length * 100) : 0;
+
+  document.getElementById('brCurrent').textContent = Math.round(bankroll).toLocaleString('da-DK') + ' kr.';
+  document.getElementById('brCurrent').className = 'stat-val' + (bankroll >= startBankroll ? '' : ' red');
+  document.getElementById('brStart').textContent = startBankroll.toLocaleString('da-DK') + ' kr.';
+  document.getElementById('brROI').textContent = (roi >= 0 ? '+' : '') + roi.toFixed(1) + '%';
+  document.getElementById('brROI').className = 'stat-val' + (roi >= 0 ? '' : ' red');
+  document.getElementById('brPL').textContent = (pl >= 0 ? '+' : '') + Math.round(pl).toLocaleString('da-DK') + ' kr.';
+  document.getElementById('brPL').className = 'stat-val' + (pl >= 0 ? '' : ' red');
+  document.getElementById('brWinRate').textContent = hitRate.toFixed(0) + '%';
+
+  // Draw chart
+  drawBankrollChart(history, startBankroll);
+}
+
+function drawBankrollChart(history, startBankroll) {
+  const canvas = document.getElementById('brCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 600;
+  const H = 200;
+  canvas.width = W;
+  canvas.height = H;
+
+  if (history.length < 2) {
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.font = '13px Inter';
+    ctx.fillText('Log bets i Tracker-fanen for at se din bankroll-udvikling', 20, H/2);
+    return;
+  }
+
+  const min = Math.min(...history) * 0.98;
+  const max = Math.max(...history) * 1.02;
+  const pad = { t: 10, r: 10, b: 30, l: 60 };
+  const w = W - pad.l - pad.r;
+  const h = H - pad.t - pad.b;
+
+  const x = i => pad.l + (i / (history.length - 1)) * w;
+  const y = v => pad.t + h - ((v - min) / (max - min)) * h;
+
+  // Background
+  ctx.clearRect(0, 0, W, H);
+
+  // Zero line (startBankroll)
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.setLineDash([4,4]);
+  ctx.beginPath();
+  ctx.moveTo(pad.l, y(startBankroll));
+  ctx.lineTo(W - pad.r, y(startBankroll));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Fill
+  const isProfit = history[history.length-1] >= startBankroll;
+  const grad = ctx.createLinearGradient(0, pad.t, 0, H - pad.b);
+  grad.addColorStop(0, isProfit ? 'rgba(0,230,118,0.3)' : 'rgba(255,82,82,0.3)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.beginPath();
+  ctx.moveTo(x(0), y(history[0]));
+  history.forEach((v,i) => ctx.lineTo(x(i), y(v)));
+  ctx.lineTo(x(history.length-1), H - pad.b);
+  ctx.lineTo(x(0), H - pad.b);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = isProfit ? '#00E676' : '#FF5252';
+  ctx.lineWidth = 2;
+  ctx.moveTo(x(0), y(history[0]));
+  history.forEach((v,i) => ctx.lineTo(x(i), y(v)));
+  ctx.stroke();
+
+  // Y labels
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '10px Roboto Mono, monospace';
+  ctx.textAlign = 'right';
+  [min, (min+max)/2, max].forEach(v => {
+    ctx.fillText(Math.round(v).toLocaleString('da-DK'), pad.l - 4, y(v) + 3);
+  });
+}
+
 function showErr(m){const e=document.getElementById('errMsg');e.textContent='⚠ '+m;e.style.display='';}
 function showInfo(m){const e=document.getElementById('infoMsg');e.textContent=m;e.style.display='';}
 // ── SIMULATION MODE ───────────────────────────────────
@@ -1119,8 +1309,5 @@ function runSimulation() {
 
 
 </script>
-<div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:rgba(255,255,255,0.4);z-index:999;user-select:none;">
-  build: 2026-07-29 00:14 (DK)
-</div>
 </body>
 </html>
