@@ -892,10 +892,12 @@ function renderResults(bets){
       </div>
       ${explanation}
       <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
-        <button onclick="quickLogBet('${b.home.replace(/'/g,\"\'\").replace(/`/g,'\`')} vs ${b.away.replace(/'/g,\"\'\").replace(/`/g,'\`')}','${topBet.name.replace(/'/g,\"\'\").replace(/`/g,'\`')}',${topBet.price},${(bankroll*0.02).toFixed(0)})"
-          style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;font-family:var(--sans);transition:all 0.15s;"
-          onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'"
-          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+        <button onclick="handleQuickLog(this)"
+          data-match="${b.home} vs ${b.away}"
+          data-market="${topBet.name}"
+          data-odds="${topBet.price}"
+          data-stake="${(bankroll*0.02).toFixed(0)}"
+          style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;font-family:var(--sans);">
           + Log dette bet
         </button>
       </div>
@@ -975,7 +977,15 @@ function renderTracker(){
   document.getElementById('tPL').className=`t-val${ret<0?' red':''}`;
 }
 
-async async function quickLogBet(match, market, odds, stake) {
+async function handleQuickLog(btn) {
+  const match = btn.dataset.match;
+  const market = btn.dataset.market;
+  const odds = parseFloat(btn.dataset.odds);
+  const stake = parseFloat(btn.dataset.stake);
+  quickLogBet(match, market, odds, stake);
+}
+
+async function quickLogBet(match, market, odds, stake) {
   const bet = {
     match, market,
     odds: parseFloat(odds),
@@ -1110,7 +1120,7 @@ function runSimulation() {
 
 </script>
 <div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:rgba(255,255,255,0.4);z-index:999;user-select:none;">
-  build: 2026-07-29 00:30 (DK)
+  build: 2026-07-29 00:08 (DK)
 </div>
 </body>
 </html>
