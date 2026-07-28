@@ -16,19 +16,20 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          SPORTMONKS_KEY: ${{ secrets.SPORTMONKS_KEY }}
         run: |
           node << 'SCRIPT'
           const https = require('https');
-          const http = require('http');
  
           const SUPABASE_URL = process.env.SUPABASE_URL;
           const SUPABASE_KEY = process.env.SUPABASE_KEY;
           const ODDS_API_KEY = process.env.ODDS_API_KEY;
+          const SPORTMONKS_KEY = process.env.SPORTMONKS_KEY;
  
+          // ── HELPERS ───────────────────────────────────────
           function fetchUrl(url) {
             return new Promise((resolve, reject) => {
-              const client = url.startsWith('https') ? https : http;
-              const req = client.get(url, { timeout: 15000 }, (res) => {
+              const req = https.get(url, { timeout: 15000 }, (res) => {
                 let data = '';
                 res.on('data', chunk => data += chunk);
                 res.on('end', () => resolve({ status: res.statusCode, body: data }));
@@ -69,6 +70,9 @@ jobs:
             });
           }
  
+          function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+ 
+          // ── FDCO CSV PARSER ───────────────────────────────
           function parseFDCO(csv) {
             const lines = csv.trim().split('\n').filter(l => l.trim());
             if (lines.length < 2) return [];
@@ -104,6 +108,79 @@ jobs:
             return String(y).slice(2) + String(y+1).slice(2);
           }
  
+          // ── SPORTMONKS FETCHER ────────────────────────────
+          // Superliga season IDs på Sportmonks
+          // 271 = Danish Superliga
+          const SPORTMONKS_LEAGUE_ID = 271;
+          const SPORTMONKS_SEASONS = [
+            { id: 19735, label: '2022/23' },
+            { id: 20596, label: '2023/24' },
+            { id: 21645, label: '2024/25' },
+          ];
+ 
+          async function fetchSportmonksSeason(seasonId) {
+            const matches = [];
+            let page = 1;
+            while (true) {
+              try {
+                const url = `https://api.sportmonks.com/v3/football/fixtures?api_token=${SPORTMONKS_KEY}&filters=seasonId:${seasonId}&include=scores;participants&per_page=50&page=${page}`;
+                const res = await fetchUrl(url);
+                if (res.status !== 200) break;
+                const data = JSON.parse(res.body);
+                const fixtures = data.data || [];
+                if (!fixtures.length) break;
+ 
+                for (const f of fixtures) {
+                  // Kun afsluttede kampe
+                  if (f.state_id !== 5) continue;
+ 
+                  const scores = f.scores || [];
+                  const ftScore = scores.find(s => s.description === 'CURRENT' && s.score);
+                  if (!ftScore) continue;
+ 
+                  const participants = f.participants || [];
+                  const home = participants.find(p => p.meta?.location === 'home');
+                  const away = participants.find(p => p.meta?.location === 'away');
+                  if (!home || !away) continue;
+ 
+                  const hg = ftScore.score?.participant === 'home' ? ftScore.score.goals : null;
+                  const ag = ftScore.score?.participant === 'away' ? ftScore.score.goals : null;
+ 
+                  // Alternativ score parsing
+                  let homeGoals = null, awayGoals = null;
+                  for (const s of scores) {
+                    if (s.description === 'CURRENT') {
+                      if (s.score?.participant === 'home') homeGoals = s.score.goals;
+                      if (s.score?.participant === 'away') awayGoals = s.score.goals;
+                    }
+                  }
+ 
+                  if (homeGoals === null || awayGoals === null) continue;
+ 
+                  const date = new Date(f.starting_at || f.starting_at_timestamp * 1000);
+                  if (isNaN(date.getTime())) continue;
+ 
+                  matches.push({
+                    h: home.name,
+                    a: away.name,
+                    hg: homeGoals,
+                    ag: awayGoals,
+                    date
+                  });
+                }
+ 
+                if (!data.pagination || page >= data.pagination.last_page) break;
+                page++;
+                await sleep(300);
+              } catch (e) {
+                console.log(`Sportmonks page ${page} fejl: ${e.message}`);
+                break;
+              }
+            }
+            return matches;
+          }
+ 
+          // ── LIGA KONFIGURATION ────────────────────────────
           const FDCO_LEAGUES = {
             epl:        { name: 'Premier League', code: 'E0'  },
             laliga:     { name: 'La Liga',        code: 'SP1' },
@@ -114,13 +191,9 @@ jobs:
             scottish:   { name: 'Scottish Prem.', code: 'SC0' },
           };
  
-          const EXTRA_LEAGUES = {
-            superliga:   { name: 'Superliga', code: 'DNK' },
-            brasileirao: { name: 'Brasileirao', code: 'BRA' },
-          };
- 
           const SEASONS = [2022, 2023, 2024];
  
+          // ── DIXON-COLES ───────────────────────────────────
           function dcWeight(date, decay) {
             return Math.exp(-decay * (Date.now() - date.getTime()) / 86400000);
           }
@@ -158,12 +231,11 @@ jobs:
             return { teams, homeAdv, avgH, avgA, matchCount: matches.length };
           }
  
-          function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
- 
+          // ── MAIN ──────────────────────────────────────────
           async function main() {
             console.log('OddsJaeger nightly update:', new Date().toISOString());
  
-            // 1. HENT ODDS
+            // 1. HENT ODDS FRA PINNACLE
             console.log('\nHenter Pinnacle-odds...');
             try {
               const sr = await fetchUrl(`https://api.the-odds-api.com/v4/sports/?apiKey=${ODDS_API_KEY}`);
@@ -176,13 +248,13 @@ jobs:
               let allMatches = [];
               for (let i=0; i<Math.min(football.length,30); i+=5) {
                 const batch = football.slice(i,i+5);
-                const res = await Promise.all(batch.map(async s => {
+                const results = await Promise.all(batch.map(async s => {
                   try {
                     const r = await fetchUrl(`https://api.the-odds-api.com/v4/sports/${s}/odds/?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h&oddsFormat=decimal&bookmakers=pinnacle`);
                     return JSON.parse(r.body);
                   } catch { return []; }
                 }));
-                res.forEach(r=>{ if(Array.isArray(r)) allMatches=allMatches.concat(r); });
+                results.forEach(r=>{ if(Array.isArray(r)) allMatches=allMatches.concat(r); });
               }
               console.log(`Hentet ${allMatches.length} kampe`);
  
@@ -197,7 +269,7 @@ jobs:
               console.log('Odds gemt i Supabase');
             } catch(e) { console.error('Odds fejl:', e.message); }
  
-            // 2. HENT KAMPDATA OG TRÆN MODEL
+            // 2. TRÆN MODEL
             console.log('\nHenter kampdata og traener model...');
             const modelResults = [];
  
@@ -212,40 +284,46 @@ jobs:
                     all = all.concat(parseFDCO(res.body));
                   }
                 } catch(e) { console.log(`${cfg.name} ${yr}: ${e.message}`); }
-                await sleep(500);
+                await sleep(400);
               }
               console.log(`${cfg.name}: ${all.length} kampe`);
               if (all.length < 10) continue;
               const model = trainDC(all);
               if (!model) continue;
-              modelResults.push({ league_key:key, league_name:cfg.name, teams:model.teams,
-                home_adv:model.homeAdv, avg_h:model.avgH, avg_a:model.avgA,
-                match_count:model.matchCount, updated_at:new Date().toISOString() });
+              modelResults.push({
+                league_key: key, league_name: cfg.name, teams: model.teams,
+                home_adv: model.homeAdv, avg_h: model.avgH, avg_a: model.avgA,
+                match_count: model.matchCount, updated_at: new Date().toISOString()
+              });
             }
  
-            // Extra ligaer via football-data.co.uk single file
-            for (const [key, cfg] of Object.entries(EXTRA_LEAGUES)) {
-              let all = [];
+            // Superliga via Sportmonks
+            console.log('\nHenter Superliga fra Sportmonks...');
+            let superligaMatches = [];
+            for (const season of SPORTMONKS_SEASONS) {
               try {
-                const url = `https://www.football-data.co.uk/new/${cfg.code}.csv`;
-                const res = await fetchUrl(url);
-                if (res.status === 200 && res.body.length > 100) {
-                  // Hent alle kampe fra de seneste 3 sæsoner
-                  const cutoff = new Date();
-                  cutoff.setFullYear(cutoff.getFullYear() - 3);
-                  all = parseFDCO(res.body).filter(m => m.date >= cutoff);
-                }
-              } catch(e) { console.log(`${cfg.name}: ${e.message}`); }
-              console.log(`${cfg.name}: ${all.length} kampe`);
-              if (all.length < 10) continue;
-              const model = trainDC(all);
-              if (!model) continue;
-              modelResults.push({ league_key:key, league_name:cfg.name, teams:model.teams,
-                home_adv:model.homeAdv, avg_h:model.avgH, avg_a:model.avgA,
-                match_count:model.matchCount, updated_at:new Date().toISOString() });
+                const matches = await fetchSportmonksSeason(season.id);
+                console.log(`  Superliga ${season.label}: ${matches.length} kampe`);
+                superligaMatches = superligaMatches.concat(matches);
+              } catch(e) {
+                console.log(`  Superliga ${season.label} fejl: ${e.message}`);
+              }
+              await sleep(500);
+            }
+            console.log(`Superliga total: ${superligaMatches.length} kampe`);
+            if (superligaMatches.length >= 10) {
+              const model = trainDC(superligaMatches);
+              if (model) {
+                modelResults.push({
+                  league_key: 'superliga', league_name: 'Superliga 🇩🇰',
+                  teams: model.teams, home_adv: model.homeAdv,
+                  avg_h: model.avgH, avg_a: model.avgA,
+                  match_count: model.matchCount, updated_at: new Date().toISOString()
+                });
+              }
             }
  
-            // Gem model i Supabase
+            // Gem model
             if (modelResults.length > 0) {
               await sbRequest('model_ratings?id=gt.0', 'DELETE');
               for (const row of modelResults) {
@@ -253,10 +331,11 @@ jobs:
                 await sleep(100);
               }
               const tc = modelResults.reduce((s,l)=>s+Object.keys(l.teams).length,0);
-              console.log(`Model gemt: ${modelResults.length} ligaer, ${tc} hold`);
+              console.log(`\nModel gemt: ${modelResults.length} ligaer, ${tc} hold`);
+              console.log('Ligaer:', modelResults.map(l=>l.league_name).join(', '));
             }
  
-            // 3. OPDATER TIDSSTEMPEL (upsert)
+            // 3. OPDATER TIDSSTEMPEL
             await sbRequest('settings', 'POST',
               { key: 'last_updated', value: new Date().toISOString() },
               { 'Prefer': 'resolution=merge-duplicates,return=minimal' }
