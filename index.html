@@ -975,7 +975,7 @@ function renderTracker(){
   document.getElementById('tPL').className=`t-val${ret<0?' red':''}`;
 }
 
-async function quickLogBet(match, market, odds, stake) {
+async async function quickLogBet(match, market, odds, stake) {
   const bet = {
     match, market,
     odds: parseFloat(odds),
@@ -1109,8 +1109,8 @@ function runSimulation() {
 
 
 </script>
-<div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:#30363D;z-index:999;user-select:none;">
-  build: 2026-07-29 00:25 (DK)
+<div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:rgba(255,255,255,0.4);z-index:999;user-select:none;">
+  build: 2026-07-29 00:30 (DK)
 </div>
 </body>
 </html>
