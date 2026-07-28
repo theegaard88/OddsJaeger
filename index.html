@@ -48,7 +48,7 @@ header {
 @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.2} }
 
 /* LAYOUT */
-.layout { display: flex; flex-direction: column; min-height: calc(100vh - 56px); }
+.layout { display: block; min-height: calc(100vh - 56px); }
 .sidebar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; position: sticky; top: 56px; z-index: 50; }
 .main { padding: 24px; width: 100%; box-sizing: border-box; max-width: 1200px; margin: 0 auto; }
 
@@ -198,8 +198,15 @@ input:focus, select:focus { border-color: var(--green); }
 <body>
 
 <header>
-  <div style="display:flex;align-items:center;gap:14px;"><div class="logo"><span class="odds">Odds</span><span class="jaeger">Jæger</span></div><div style="font-size:10px;font-family:var(--mono);color:rgba(255,255,255,0.35);">build: 2026-07-29 00:31 (DK)</div></div>
-  <div class="header-status">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div class="logo"><span class="odds">Odds</span><span class="jaeger">Jæger</span></div>
+    <div style="font-size:10px;font-family:var(--mono);color:rgba(255,255,255,0.25);">build: 2026-07-29 00:38 (DK)</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:20px;">
+    <div class="mini-stats" id="miniStats" style="display:none;">
+      <div class="mini-stat"><div class="mini-val" id="msBets">0</div><div class="mini-lbl">Model bets</div></div>
+      <div class="mini-stat"><div class="mini-val blue" id="msKampe">0</div><div class="mini-lbl">Kampe</div></div>
+    </div>
     <div class="status-chip">
       <div class="status-dot" id="modelDot"></div>
       <span id="modelStatus">Model ikke trænet</span>
@@ -214,22 +221,9 @@ input:focus, select:focus { border-color: var(--green); }
 <div class="layout">
 
   <!-- SIDEBAR -->
-  <aside class="sidebar">
-
-    <!-- minValue and bankroll now in Indstillinger tab -->
-    <input type="number" id="minValue" value="3" min="0" max="30" style="display:none;">
-    <input type="number" id="bankroll" value="10000" style="display:none;">
-
-    <div class="mini-stats" id="miniStats" style="display:none;">
-      <div class="mini-stat"><div class="mini-val" id="msBets">0</div><div class="mini-lbl">Model bets</div></div>
-      <div class="mini-stat"><div class="mini-val blue" id="msKampe">0</div><div class="mini-lbl">Kampe</div></div>
-    </div>
-
-    <!-- Hidden fields needed by JS -->
-    <button id="fetchBtn" style="display:none;" onclick="fetchOdds()"></button>
-    <button id="trainBtn" style="display:none;" onclick="trainModel()"></button>
-    <button id="simBtn" style="display:none;"></button>
-    <input type="password" id="apiKey" style="display:none;">
+  <aside class="sidebar" style="display:none;">
+    <input type="number" id="minValue" value="3" min="0" max="30">
+    <input type="number" id="bankroll" value="10000">
     <select id="regionSelect" style="display:none;"><option value="eu">Europa (EU)</option><option value="uk">England (UK)</option></select>
     <select id="decayRate" style="display:none;"><option value="0.003">Moderat</option><option value="0.005" selected>Høj</option><option value="0.008">Meget høj</option></select>
     <input type="checkbox" id="lg_epl" checked style="display:none;">
@@ -243,11 +237,11 @@ input:focus, select:focus { border-color: var(--green); }
     <input type="checkbox" id="lg_eredivisie" checked style="display:none;">
     <input type="checkbox" id="lg_scottish" checked style="display:none;">
     <input type="checkbox" id="simMode" style="display:none;">
-    <div class="progress-wrap" id="progressWrap">
-      <div class="progress-label" id="progressLabel">Henter data...</div>
-      <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-    </div>
-
+    <button id="fetchBtn" style="display:none;" onclick="fetchOdds()"></button>
+    <button id="trainBtn" style="display:none;" onclick="trainModel()"></button>
+    <button id="simBtn" style="display:none;"></button>
+    <div id="progressWrap" style="display:none;"><div id="progressLabel"></div><div><div id="progressFill"></div></div></div>
+    <input type="password" id="apiKey" style="display:none;">
   </aside>
 
   <!-- MAIN -->
@@ -386,26 +380,43 @@ input:focus, select:focus { border-color: var(--green); }
 
     <!-- BANKROLL TAB -->
     <div id="tab-bankroll" style="display:none;">
-      <div class="stats-grid" style="margin-bottom:24px;">
-        <div class="stat-box"><div class="stat-val" id="brCurrent">-</div><div class="stat-lbl">Nuværende bankroll</div></div>
-        <div class="stat-box"><div class="stat-val" id="brStart">-</div><div class="stat-lbl">Startbankroll</div></div>
-        <div class="stat-box"><div class="stat-val" id="brROI">-</div><div class="stat-lbl">ROI</div></div>
-        <div class="stat-box"><div class="stat-val" id="brPL">-</div><div class="stat-lbl">Profit/Tab</div></div>
-        <div class="stat-box"><div class="stat-val" id="brWinRate">-</div><div class="stat-lbl">Hit rate</div></div>
-      </div>
-      <div class="card">
-        <h2>Bankroll udvikling</h2>
-        <div id="bankrollChart" style="position:relative;height:200px;margin-top:8px;">
-          <canvas id="brCanvas" style="width:100%;height:200px;"></canvas>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;border-left:3px solid var(--green);">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Nuværende bankroll</div>
+          <div id="brCurrent" style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--green);">-</div>
         </div>
-        <div style="font-size:12px;color:var(--muted);margin-top:12px;line-height:1.6;">
-          Bankrollen beregnes automatisk ud fra dine loggede bets i Tracker-fanen.<br>
-          Sæt din startbankroll under <strong>⚙️ Indstillinger</strong>.
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Startbankroll</div>
+          <div id="brStart" style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--text);">-</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Profit / Tab</div>
+          <div id="brPL" style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--green);">-</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">ROI</div>
+          <div id="brROI" style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--green);">-</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Hit rate</div>
+          <div id="brWinRate" style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--blue);">-</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Afgjorte bets</div>
+          <div id="brSettled" style="font-family:var(--mono);font-size:26px;font-weight:700;color:var(--text);">-</div>
+        </div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Bankroll udvikling</div>
+        <canvas id="brCanvas" style="width:100%;height:220px;display:block;"></canvas>
+        <div style="font-size:12px;color:var(--muted);margin-top:14px;line-height:1.6;">
+          Bankrollen beregnes automatisk ud fra dine loggede bets i Tracker-fanen.
+          Sæt din startbankroll under <strong style="color:var(--text);">⚙️ Indstillinger</strong>.
         </div>
       </div>
     </div>
 
-    <!-- INDSTILLINGER TAB -->
+    <!-- INDSTILLINGER TAB --><!-- INDSTILLINGER TAB -->
     <div id="tab-indstillinger" style="display:none;">
       <div class="card" style="max-width:500px;">
         <h2>Betting indstillinger</h2>
@@ -1138,6 +1149,7 @@ function renderBankrollTab() {
   document.getElementById('brPL').textContent = (pl >= 0 ? '+' : '') + Math.round(pl).toLocaleString('da-DK') + ' kr.';
   document.getElementById('brPL').className = 'stat-val' + (pl >= 0 ? '' : ' red');
   document.getElementById('brWinRate').textContent = hitRate.toFixed(0) + '%';
+  document.getElementById('brSettled') && (document.getElementById('brSettled').textContent = settled.length);
 
   // Draw chart
   drawBankrollChart(history, startBankroll);
