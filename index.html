@@ -48,9 +48,9 @@ header {
 @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.2} }
 
 /* LAYOUT */
-.layout { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 56px); }
+.layout { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 56px); width: 100%; }
 .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 20px 16px; position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto; }
-.main { padding: 24px; max-width: 860px; }
+.main { padding: 24px; width: 100%; box-sizing: border-box; }
 
 /* SIDEBAR */
 .sidebar-section { margin-bottom: 24px; }
@@ -1120,7 +1120,7 @@ function runSimulation() {
 
 </script>
 <div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:rgba(255,255,255,0.4);z-index:999;user-select:none;">
-  build: 2026-07-29 00:08 (DK)
+  build: 2026-07-29 00:14 (DK)
 </div>
 </body>
 </html>
