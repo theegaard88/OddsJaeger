@@ -570,7 +570,7 @@ function showStatus(msg) {
 function showTab(name, el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  ['bets','model','tracker','guide'].forEach(t=>{ document.getElementById('tab-'+t).style.display=t===name?'':'none'; });
+  ['bets','model','tracker','guide','admin'].forEach(t=>{ const el=document.getElementById('tab-'+t); if(el) el.style.display=t===name?'':'none'; });
   if(name==='tracker'){loadBets().then(()=>renderTracker());}
   if(name==='model') renderModelTab();
 }
@@ -1175,7 +1175,7 @@ function runSimulation() {
 
 </script>
 <div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:#30363D;z-index:999;user-select:none;">
-  build: 2026-07-29 00:00 (DK)
+  build: 2026-07-29 00:05 (DK)
 </div>
 </body>
 </html>
