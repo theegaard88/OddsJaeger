@@ -384,74 +384,6 @@ input:focus, select:focus { border-color: var(--green); }
 
     </div>
 
-    <!-- ADMIN TAB -->
-    <div id="tab-admin" style="display:none;">
-      <div style="background:rgba(255,82,82,0.06);border:1px solid rgba(255,82,82,0.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:12px;color:var(--muted);">
-        ⚙️ Disse indstillinger håndteres automatisk af appen. Brug kun denne fane til fejlfinding eller manuel genopfriskning.
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-
-        <div class="card" style="margin-bottom:0;">
-          <h2>Odds API</h2>
-          <div class="field-group" style="margin-bottom:12px;">
-            <div style="font-size:11px;color:var(--muted);">API-nøgle (gemmes i Supabase)</div>
-            <input type="password" id="apiKeyAdmin" placeholder="Odds API nøgle..." style="width:100%;" oninput="document.getElementById('apiKey').value=this.value">
-            <div style="font-size:11px;color:var(--muted);margin-top:6px;">Region</div>
-            <select id="regionAdmin" style="width:100%;" onchange="document.getElementById('regionSelect').value=this.value">
-              <option value="eu">Europa (EU)</option>
-              <option value="uk">England (UK)</option>
-            </select>
-          </div>
-          <button class="btn btn-green" id="fetchBtn" onclick="fetchOdds()" style="width:100%;">🔄 Genopfrisk odds nu</button>
-        </div>
-
-        <div class="card" style="margin-bottom:0;">
-          <h2>🧪 Simuleringstilstand</h2>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">Genererer fiktive testkampe baseret på modellens holdratings. Slå fra når ligaerne starter.</div>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;margin-bottom:12px;">
-            <input type="checkbox" id="simModeAdmin" onchange="document.getElementById('simMode').checked=this.checked;toggleSimMode();"> Aktiver simulering
-          </label>
-          <button class="btn btn-outline" id="simBtn" onclick="runSimulation()" style="border-color:var(--yellow);color:var(--yellow);display:none;width:100%;">⚗️ Kør simulering</button>
-        </div>
-
-      </div>
-
-      <div class="card">
-        <h2>🧠 Modeltræning</h2>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Modellen genoptrænes automatisk hvis den er mere end 7 dage gammel. Du kan også genoptræne manuelt her.</div>
-        <div style="margin-bottom:14px;">
-          <div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.8px;">Ligaer</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
-            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_epl_a" checked onchange="document.getElementById('lg_epl').checked=this.checked"> Premier League</label>
-            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_laliga_a" checked onchange="document.getElementById('lg_laliga').checked=this.checked"> La Liga</label>
-            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_bundesliga_a" checked onchange="document.getElementById('lg_bundesliga').checked=this.checked"> Bundesliga</label>
-            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_seriea_a" checked onchange="document.getElementById('lg_seriea').checked=this.checked"> Serie A</label>
-            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_ligue1_a" checked onchange="document.getElementById('lg_ligue1').checked=this.checked"> Ligue 1</label>
-            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_superliga_a" checked onchange="document.getElementById('lg_superliga').checked=this.checked"> Superliga 🇩🇰</label>
-            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_mls_a" checked onchange="document.getElementById('lg_mls').checked=this.checked"> MLS 🇺🇸</label>
-            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_brasileirao_a" checked onchange="document.getElementById('lg_brasileirao').checked=this.checked"> Brasileirao 🇧🇷</label>
-            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_eredivisie_a" checked onchange="document.getElementById('lg_eredivisie').checked=this.checked"> Eredivisie 🇳🇱</label>
-            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="lg_scottish_a" checked onchange="document.getElementById('lg_scottish').checked=this.checked"> Scottish Prem. 🏴󠁧󠁢󠁳󠁣󠁴󠁿</label>
-          </div>
-        </div>
-        <div style="margin-bottom:14px;">
-          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.8px;">Vægtning af nylige kampe</div>
-          <select id="decayRateAdmin" style="width:100%;" onchange="document.getElementById('decayRate').value=this.value">
-            <option value="0.003">Moderat (6 mdr. half-life)</option>
-            <option value="0.005" selected>Høj (3-4 mdr.) — anbefalet</option>
-            <option value="0.008">Meget høj (2 mdr.)</option>
-          </select>
-        </div>
-        <button class="btn btn-blue" id="trainBtn" onclick="trainModel()" style="width:100%;">🔄 Genoptræn model nu</button>
-        <div class="progress-wrap" id="progressWrap" style="margin-top:12px;">
-          <div class="progress-label" id="progressLabel">Henter data...</div>
-          <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
-        </div>
-      </div>
-
-    </div>
-
   </main>
 </div>
 
@@ -570,7 +502,7 @@ function showStatus(msg) {
 function showTab(name, el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  ['bets','model','tracker','guide','admin'].forEach(t=>{ const el=document.getElementById('tab-'+t); if(el) el.style.display=t===name?'':'none'; });
+  ['bets','model','tracker','guide'].forEach(t=>{ document.getElementById('tab-'+t).style.display=t===name?'':'none'; });
   if(name==='tracker'){loadBets().then(()=>renderTracker());}
   if(name==='model') renderModelTab();
 }
@@ -1175,7 +1107,7 @@ function runSimulation() {
 
 </script>
 <div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:#30363D;z-index:999;user-select:none;">
-  build: 2026-07-29 00:05 (DK)
+  build: 2026-07-29 00:15 (DK)
 </div>
 </body>
 </html>
