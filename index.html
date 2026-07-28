@@ -261,7 +261,7 @@ input:focus, select:focus { border-color: var(--green); }
       <div class="tab" onclick="showTab('model',this)">📊 Holdratings</div>
       <div class="tab" onclick="showTab('tracker',this)">📋 Tracker</div>
       <div class="tab" onclick="showTab('guide',this)">📖 Guide</div>
-      <div class="tab" onclick="showTab('admin',this)" style="margin-left:auto;color:var(--muted);font-size:12px;">⚙️ Admin</div>
+      
     </div>
 
     <!-- BETS TAB -->
@@ -570,7 +570,7 @@ function showStatus(msg) {
 function showTab(name, el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  ['bets','model','tracker','guide','admin'].forEach(t=>{ document.getElementById('tab-'+t).style.display=t===name?'':'none'; });
+  ['bets','model','tracker','guide'].forEach(t=>{ document.getElementById('tab-'+t).style.display=t===name?'':'none'; });
   if(name==='tracker'){loadBets().then(()=>renderTracker());}
   if(name==='model') renderModelTab();
 }
@@ -956,6 +956,14 @@ function renderResults(bets){
         <div class="meter-pct ${pctColor}">+${topBet.mv.toFixed(1)}%</div>
       </div>
       ${explanation}
+      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+        <button onclick="quickLogBet('${b.home.replace(/'/g,\"\'\").replace(/`/g,'\`')} vs ${b.away.replace(/'/g,\"\'\").replace(/`/g,'\`')}','${topBet.name.replace(/'/g,\"\'\").replace(/`/g,'\`')}',${topBet.price},${(bankroll*0.02).toFixed(0)})"
+          style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:7px 14px;font-size:12px;cursor:pointer;font-family:var(--sans);transition:all 0.15s;"
+          onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+          + Log dette bet
+        </button>
+      </div>
     </div>`;
   }).join('');
 
@@ -1030,6 +1038,29 @@ function renderTracker(){
   document.getElementById('tROI').className=`t-val${roi<0?' red':''}`;
   document.getElementById('tPL').textContent=`${ret>=0?'+':''}${ret.toFixed(0)} kr.`;
   document.getElementById('tPL').className=`t-val${ret<0?' red':''}`;
+}
+
+async function quickLogBet(match, market, odds, stake) {
+  const bet = {
+    match, market,
+    odds: parseFloat(odds),
+    stake: parseFloat(stake),
+    type: 'model',
+    result: 'pending',
+    date: new Date().toLocaleDateString('da-DK')
+  };
+  const id = await saveBet(bet);
+  if (id) {
+    bet.id = id;
+    trackerBets.unshift(bet);
+    // Vis kort bekræftelse
+    const info = document.getElementById('infoMsg');
+    info.textContent = `✅ Bet logget: ${match} @ ${odds} — ${stake} kr.`;
+    info.style.display = '';
+    setTimeout(() => { info.style.display = 'none'; }, 3000);
+  } else {
+    alert('Kunne ikke gemme bet i skyen.');
+  }
 }
 
 function toggleLogForm(){const w=document.getElementById('logFormWrap');w.style.display=w.style.display?'':'block';}
@@ -1144,7 +1175,7 @@ function runSimulation() {
 
 </script>
 <div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:#30363D;z-index:999;user-select:none;">
-  build: 2026-07-23 23:50 (DK)
+  build: 2026-07-29 00:00 (DK)
 </div>
 </body>
 </html>
