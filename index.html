@@ -232,6 +232,9 @@ input:focus, select:focus { border-color: var(--green); }
     </div>
 
     <!-- Hidden fields needed by JS -->
+    <button id="fetchBtn" style="display:none;" onclick="fetchOdds()"></button>
+    <button id="trainBtn" style="display:none;" onclick="trainModel()"></button>
+    <button id="simBtn" style="display:none;"></button>
     <input type="password" id="apiKey" style="display:none;">
     <select id="regionSelect" style="display:none;"><option value="eu">Europa (EU)</option><option value="uk">England (UK)</option></select>
     <select id="decayRate" style="display:none;"><option value="0.003">Moderat</option><option value="0.005" selected>Høj</option><option value="0.008">Meget høj</option></select>
@@ -1014,8 +1017,8 @@ function showInfo(m){const e=document.getElementById('infoMsg');e.textContent=m;
 function toggleSimMode() {
   const on = document.getElementById('simMode').checked;
   document.getElementById('simBtn').style.display = on ? '' : 'none';
-  document.getElementById('fetchBtn').style.opacity = on ? '0.4' : '1';
-  document.getElementById('fetchBtn').title = on ? 'Slå simulering fra for at hente rigtige odds' : '';
+  const fb=document.getElementById('fetchBtn'); if(fb) fb.style.opacity = on ? '0.4' : '1';
+  if(fb) fb.title = on ? 'Slå simulering fra for at hente rigtige odds' : '';
 }
 
 function runSimulation() {
@@ -1107,7 +1110,7 @@ function runSimulation() {
 
 </script>
 <div style="position:fixed;bottom:10px;right:14px;font-size:10px;font-family:'Roboto Mono',monospace;color:#30363D;z-index:999;user-select:none;">
-  build: 2026-07-29 00:15 (DK)
+  build: 2026-07-29 00:25 (DK)
 </div>
 </body>
 </html>
