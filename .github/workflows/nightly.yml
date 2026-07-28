@@ -1,0 +1,278 @@
+name: Nightly Data Update
+ 
+on:
+  schedule:
+    # Kører kl. 01:00 UTC = 03:00 dansk sommertid
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    # Tillader manuel kørsel fra GitHub UI
+ 
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+ 
+    steps:
+      - name: Fetch football data & train model
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: |
+          node << 'SCRIPT'
+          const https = require('https');
+          const http = require('http');
+ 
+          const SUPABASE_URL = process.env.SUPABASE_URL;
+          const SUPABASE_KEY = process.env.SUPABASE_KEY;
+          const ODDS_API_KEY = process.env.ODDS_API_KEY;
+ 
+          // ── HELPERS ──────────────────────────────────────
+          function fetchUrl(url) {
+            return new Promise((resolve, reject) => {
+              const client = url.startsWith('https') ? https : http;
+              const req = client.get(url, { timeout: 15000 }, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => resolve({ status: res.statusCode, body: data }));
+              });
+              req.on('error', reject);
+              req.on('timeout', () => { req.destroy(); reject(new Error('Timeout: ' + url)); });
+            });
+          }
+ 
+          function sbFetch(path, method = 'GET', body = null) {
+            return new Promise((resolve, reject) => {
+              const url = new URL(`${SUPABASE_URL}/rest/v1/${path}`);
+              const options = {
+                hostname: url.hostname,
+                path: url.pathname + url.search,
+                method,
+                headers: {
+                  'apikey': SUPABASE_KEY,
+                  'Authorization': `Bearer ${SUPABASE_KEY}`,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'return=minimal'
+                }
+              };
+              const req = https.request(options, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                  if (res.statusCode >= 400) reject(new Error(`Supabase ${res.statusCode}: ${data}`));
+                  else resolve(data ? JSON.parse(data) : null);
+                });
+              });
+              req.on('error', reject);
+              if (body) req.write(JSON.stringify(body));
+              req.end();
+            });
+          }
+ 
+          // ── FDCO CSV PARSER ───────────────────────────────
+          function parseFDCO(csv) {
+            const lines = csv.trim().split('\n').filter(l => l.trim());
+            if (lines.length < 2) return [];
+            const headers = lines[0].split(',').map(h => h.trim().replace(/\r|\uFEFF|"/g, ''));
+            const ix = {};
+            ['Date','HomeTeam','AwayTeam','FTHG','FTAG'].forEach(h => { ix[h] = headers.indexOf(h); });
+            if (ix.HomeTeam < 0 || ix.FTHG < 0) return [];
+            const out = [];
+            for (let i = 1; i < lines.length; i++) {
+              const c = lines[i].split(',').map(x => x.trim().replace(/\r|"/g, ''));
+              const h = c[ix.HomeTeam], a = c[ix.AwayTeam];
+              if (!h || !a) continue;
+              const hg = parseFloat(c[ix.FTHG]), ag = parseFloat(c[ix.FTAG]);
+              if (isNaN(hg) || isNaN(ag)) continue;
+              const raw = (c[ix.Date] || '').trim();
+              let date = new Date();
+              if (raw.includes('/')) {
+                const dp = raw.split('/');
+                if (dp.length === 3) {
+                  const y = dp[2].length === 2 ? '20' + dp[2] : dp[2];
+                  date = new Date(`${y}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}`);
+                }
+              }
+              if (isNaN(date.getTime())) continue;
+              out.push({ h, a, hg, ag, date });
+            }
+            return out;
+          }
+ 
+          function seasonCode(y) {
+            return String(y).slice(2) + String(y+1).slice(2);
+          }
+ 
+          // ── LIGA KONFIGURATION ────────────────────────────
+          const LEAGUES = {
+            epl:        { name: 'Premier League',    code: 'E0'  },
+            laliga:     { name: 'La Liga',           code: 'SP1' },
+            bundesliga: { name: 'Bundesliga',        code: 'D1'  },
+            seriea:     { name: 'Serie A',           code: 'I1'  },
+            ligue1:     { name: 'Ligue 1',           code: 'F1'  },
+            eredivisie: { name: 'Eredivisie',        code: 'N1'  },
+            scottish:   { name: 'Scottish Prem.',    code: 'SC0' },
+            superliga:  { name: 'Superliga 🇩🇰',    code: 'DNK', extra: true },
+            brasileirao:{ name: 'Brasileirao 🇧🇷',  code: 'BRA', extra: true },
+          };
+ 
+          const SEASONS = [2022, 2023, 2024];
+ 
+          // ── DIXON-COLES ───────────────────────────────────
+          function dcWeight(date, decay) {
+            return Math.exp(-decay * (Date.now() - date.getTime()) / 86400000);
+          }
+ 
+          function trainDC(matches, decay = 0.005) {
+            if (matches.length < 10) return null;
+            const teams = {};
+            matches.forEach(m => {
+              if (!teams[m.h]) teams[m.h] = { att: 1, def: 1 };
+              if (!teams[m.a]) teams[m.a] = { att: 1, def: 1 };
+            });
+            const tn = Object.keys(teams);
+            let tw = 0, thg = 0, tag = 0;
+            matches.forEach(m => { const w = dcWeight(m.date, decay); tw += w; thg += m.hg*w; tag += m.ag*w; });
+            const avgH = tw > 0 ? thg/tw : 1.4, avgA = tw > 0 ? tag/tw : 1.1;
+            const homeAdv = avgA > 0 ? avgH/avgA : 1.3;
+            for (let it = 0; it < 60; it++) {
+              const an = {}, ad = {}, dn = {}, dd = {};
+              tn.forEach(t => { an[t]=0; ad[t]=0; dn[t]=0; dd[t]=0; });
+              matches.forEach(m => {
+                const w = dcWeight(m.date, decay), ht = teams[m.h], at = teams[m.a];
+                an[m.h]+=w*m.hg; ad[m.h]+=w*at.def*homeAdv*avgA;
+                an[m.a]+=w*m.ag; ad[m.a]+=w*ht.def*avgA;
+                dn[m.h]+=w*m.ag; dd[m.h]+=w*at.att*avgA;
+                dn[m.a]+=w*m.hg; dd[m.a]+=w*ht.att*homeAdv*avgA;
+              });
+              tn.forEach(t => {
+                if(ad[t]>0) teams[t].att=an[t]/ad[t];
+                if(dd[t]>0) teams[t].def=dn[t]/dd[t];
+              });
+              const ma = tn.reduce((s,t)=>s+teams[t].att,0)/tn.length;
+              const md = tn.reduce((s,t)=>s+teams[t].def,0)/tn.length;
+              tn.forEach(t => { teams[t].att/=ma; teams[t].def/=md; });
+            }
+            return { teams, homeAdv, avgH, avgA, matchCount: matches.length };
+          }
+ 
+          function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+ 
+          // ── MAIN ──────────────────────────────────────────
+          async function main() {
+            console.log('🚀 OddsJæger nightly update startet:', new Date().toISOString());
+ 
+            // 1. HENT ODDS FRA PINNACLE
+            console.log('\n📊 Henter Pinnacle-odds...');
+            try {
+              const sportsRes = await fetchUrl(`https://api.the-odds-api.com/v4/sports/?apiKey=${ODDS_API_KEY}`);
+              const sports = JSON.parse(sportsRes.body);
+              const football = Array.isArray(sports)
+                ? sports.filter(s => s.group === 'Soccer' && s.active).map(s => s.key)
+                : [];
+              console.log(`   Fandt ${football.length} fodboldligaer`);
+ 
+              let allMatches = [];
+              for (let i = 0; i < Math.min(football.length, 30); i += 5) {
+                const batch = football.slice(i, i+5);
+                const results = await Promise.all(batch.map(async s => {
+                  try {
+                    const r = await fetchUrl(`https://api.the-odds-api.com/v4/sports/${s}/odds/?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h&oddsFormat=decimal&bookmakers=pinnacle`);
+                    return JSON.parse(r.body);
+                  } catch { return []; }
+                }));
+                results.forEach(r => { if (Array.isArray(r)) allMatches = allMatches.concat(r); });
+              }
+              console.log(`   Hentet ${allMatches.length} kampe med Pinnacle-odds`);
+ 
+              // Gem i Supabase
+              await sbFetch('cached_odds?id=gt.0', 'DELETE');
+              if (allMatches.length > 0) {
+                const rows = allMatches.map(m => ({
+                  match_id: m.id, home_team: m.home_team, away_team: m.away_team,
+                  sport_key: m.sport_key, commence_time: m.commence_time, bookmakers: m.bookmakers
+                }));
+                // Insert i batches af 100
+                for (let i = 0; i < rows.length; i += 100) {
+                  await sbFetch('cached_odds', 'POST', rows.slice(i, i+100));
+                }
+              }
+              console.log('   ✅ Odds gemt i Supabase');
+            } catch (e) {
+              console.error('   ❌ Odds fejl:', e.message);
+            }
+ 
+            // 2. TRÆN MODEL
+            console.log('\n🧠 Træner Dixon-Coles model...');
+            const modelResults = [];
+ 
+            for (const [key, cfg] of Object.entries(LEAGUES)) {
+              let allMatches = [];
+              for (const yr of SEASONS) {
+                try {
+                  let url;
+                  if (cfg.extra) {
+                    url = `https://www.football-data.co.uk/new/${cfg.code}.csv`;
+                  } else {
+                    url = `https://www.football-data.co.uk/mmz4281/${seasonCode(yr)}/${cfg.code}.csv`;
+                  }
+                  const res = await fetchUrl(url);
+                  if (res.status === 200) {
+                    const matches = parseFDCO(res.body);
+                    // For extra ligaer: filtrer på sæsonår
+                    if (cfg.extra) {
+                      const filtered = matches.filter(m => {
+                        const y = m.date.getFullYear();
+                        return y >= yr && y <= yr+1;
+                      });
+                      allMatches = allMatches.concat(filtered);
+                    } else {
+                      allMatches = allMatches.concat(matches);
+                    }
+                  }
+                  await sleep(300);
+                } catch (e) {
+                  console.log(`   ⚠️ ${cfg.name} ${yr}: ${e.message}`);
+                }
+              }
+ 
+              console.log(`   ${cfg.name}: ${allMatches.length} kampe`);
+              if (allMatches.length < 10) continue;
+ 
+              const model = trainDC(allMatches);
+              if (!model) continue;
+ 
+              modelResults.push({
+                league_key: key,
+                league_name: cfg.name,
+                teams: model.teams,
+                home_adv: model.homeAdv,
+                avg_h: model.avgH,
+                avg_a: model.avgA,
+                match_count: model.matchCount,
+                updated_at: new Date().toISOString()
+              });
+            }
+ 
+            console.log(`\n   Trænede ${modelResults.length} ligaer`);
+ 
+            if (modelResults.length > 0) {
+              await sbFetch('model_ratings?id=gt.0', 'DELETE');
+              for (const row of modelResults) {
+                await sbFetch('model_ratings', 'POST', row);
+              }
+              console.log('   ✅ Model gemt i Supabase');
+            }
+ 
+            // 3. OPDATER TIDSSTEMPEL
+            await sbFetch('settings', 'POST', { key: 'last_updated', value: new Date().toISOString() });
+ 
+            const tc = modelResults.reduce((s,l) => s + Object.keys(l.teams).length, 0);
+            console.log(`\n✅ Nightly update færdig!`);
+            console.log(`   Ligaer: ${modelResults.length}`);
+            console.log(`   Hold: ${tc}`);
+            console.log(`   Tidspunkt: ${new Date().toISOString()}`);
+          }
+ 
+          main().catch(e => { console.error('FATAL:', e); process.exit(1); });
+          SCRIPT
