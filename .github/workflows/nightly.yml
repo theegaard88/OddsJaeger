@@ -260,6 +260,12 @@ jobs:
                 results.forEach(r=>{ if(Array.isArray(r)) allMatches=allMatches.concat(r); });
               }
               console.log(`Hentet ${allMatches.length} kampe med Pinnacle-odds`);
+              // Debug: vis hvilke sport_keys der returnerede kampe
+              const sportsWithMatches = [...new Set(allMatches.map(m => m.sport_key))];
+              console.log(`Sport keys med kampe: ${sportsWithMatches.slice(0,10).join(', ')}`);
+              // Debug: vis antal fodboldligaer fundet
+              console.log(`Fodboldligaer fundet: ${football.length}`);
+              console.log(`Fodboldligaer (første 10): ${football.slice(0,10).join(', ')}`);
               if (allMatches.length > 0) {
                 // Kun slet gammel cache hvis vi rent faktisk har nye kampe
                 await sbRequest('cached_odds?id=gt.0', 'DELETE');
