@@ -146,16 +146,24 @@ jobs:
           async function fetchSportmonksSuperliga() {
             const matches = [];
             try {
-              const leagueRes = await fetchUrl(
-                `https://api.sportmonks.com/v3/football/leagues/172?api_token=${SPORTMONKS_KEY}&include=seasons`
+              // Hent sæsoner direkte fra seasons endpoint
+              const seasonsRes = await fetchUrl(
+                `https://api.sportmonks.com/v3/football/seasons?api_token=${SPORTMONKS_KEY}&filters=leagueId:172&per_page=25`
               );
-              if (leagueRes.status !== 200) return matches;
-              const leagueData = JSON.parse(leagueRes.body);
+              if (seasonsRes.status !== 200) {
+                console.log(`  Sportmonks seasons HTTP: ${seasonsRes.status}`);
+                return matches;
+              }
+              const seasonsData = JSON.parse(seasonsRes.body);
               const cutoff = new Date();
               cutoff.setFullYear(cutoff.getFullYear() - (FULL_REFRESH ? 3 : 1));
-              const seasons = (leagueData.data?.seasons || [])
-                .filter(s => new Date(s.ending_at || s.starting_at) >= cutoff);
-              console.log(`  Sportmonks sæsoner: ${seasons.map(s=>s.name).join(', ')}`);
+              const allSeasons = seasonsData.data || [];
+              console.log(`  Alle Sportmonks sæsoner: ${allSeasons.map(s=>s.name).join(', ')}`);
+              const seasons = allSeasons.filter(s => {
+                const end = new Date(s.ending_at || s.starting_at || '');
+                return end >= cutoff;
+              });
+              console.log(`  Filtrerede sæsoner: ${seasons.map(s=>s.name).join(', ')}`);
  
               for (const season of seasons) {
                 let page = 1, lastPage = 1;
@@ -252,19 +260,34 @@ jobs:
                 results.forEach(r=>{ if(Array.isArray(r)) allMatches=allMatches.concat(r); });
               }
               console.log(`Hentet ${allMatches.length} kampe med Pinnacle-odds`);
-              await sbRequest('cached_odds?id=gt.0', 'DELETE');
-              for (let i=0; i<allMatches.length; i+=100) {
-                await sbRequest('cached_odds', 'POST', allMatches.slice(i,i+100).map(m=>({
-                  match_id:m.id, home_team:m.home_team, away_team:m.away_team,
-                  sport_key:m.sport_key, commence_time:m.commence_time, bookmakers:m.bookmakers
-                })));
+              if (allMatches.length > 0) {
+                // Kun slet gammel cache hvis vi rent faktisk har nye kampe
+                await sbRequest('cached_odds?id=gt.0', 'DELETE');
+                for (let i=0; i<allMatches.length; i+=100) {
+                  await sbRequest('cached_odds', 'POST', allMatches.slice(i,i+100).map(m=>({
+                    match_id:m.id, home_team:m.home_team, away_team:m.away_team,
+                    sport_key:m.sport_key, commence_time:m.commence_time, bookmakers:m.bookmakers
+                  })));
+                }
+                console.log('Odds gemt');
+              } else {
+                console.log('Ingen nye odds - beholder eksisterende cache');
               }
-              console.log('Odds gemt');
             } catch(e) { console.error('Odds fejl:', e.message); }
  
             // 2. TRÆN MODEL
             console.log('\nTraener model...');
             const modelResults = [];
+ 
+            // Spring modeltræning over ved natkørsel - kun fuld refresh genberegner modellen
+            if (!FULL_REFRESH) {
+              console.log('\nNatkørsel: springer modeltræning over (model genberegnes kun ved fuld refresh)');
+              await sbRequest('settings', 'POST',
+                { key:'last_updated', value:new Date().toISOString() },
+                { 'Prefer':'resolution=merge-duplicates,return=minimal' });
+              console.log('\nFaerdig:', new Date().toISOString());
+              return;
+            }
  
             // Store ligaer via openfootball (GitHub, gratis, alle sæsoner)
             console.log('\nopenfootball.github.io:');
