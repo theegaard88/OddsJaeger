@@ -39,7 +39,7 @@ jobs:
           const SPORTMONKS_KEY = process.env.SPORTMONKS_KEY;
           const FULL_REFRESH = process.env.FULL_REFRESH === 'true';
  
-          console.log(`Tilstand: ${FULL_REFRESH ? 'FULD HISTORIK (3 saesoner)' : 'NATKØRSEL (kun indeværende sæson)'}`);
+          console.log(`Tilstand: ${FULL_REFRESH ? 'FULD HISTORIK' : 'NATKØRSEL'}`);
  
           function fetchUrl(url, headers = {}) {
             return new Promise((resolve, reject) => {
@@ -86,71 +86,109 @@ jobs:
  
           function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
  
-          // ── FOOTBALL-DATA.CO.UK ───────────────────────────
-          function parseFDCO(csv) {
-            const lines = csv.trim().split('\n').filter(l => l.trim());
-            if (lines.length < 2) return [];
-            const headers = lines[0].split(',').map(h => h.trim().replace(/\r|\uFEFF|"/g, ''));
-            const ix = {};
-            ['Date','HomeTeam','AwayTeam','FTHG','FTAG'].forEach(h => { ix[h] = headers.indexOf(h); });
-            if (ix.HomeTeam < 0 || ix.FTHG < 0) return [];
-            const out = [];
-            for (let i = 1; i < lines.length; i++) {
-              const c = lines[i].split(',').map(x => x.trim().replace(/\r|"/g, ''));
-              const h = c[ix.HomeTeam], a = c[ix.AwayTeam];
-              if (!h || !a) continue;
-              const hg = parseFloat(c[ix.FTHG]), ag = parseFloat(c[ix.FTAG]);
-              if (isNaN(hg) || isNaN(ag)) continue;
-              const raw = (c[ix.Date] || '').trim();
-              let date = null;
-              if (raw.includes('/')) {
-                const dp = raw.split('/');
-                if (dp.length === 3) {
-                  const y = dp[2].length === 2 ? '20' + dp[2] : dp[2];
-                  date = new Date(`${y}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}`);
+          // ── OPENFOOTBALL (GitHub, ingen API-nøgle) ────────
+          // Dækker: EPL, Bundesliga, La Liga, Serie A, Ligue 1, Eredivisie
+          // Sæsoner: 2022-23, 2023-24, 2024-25, 2025-26
+          const OPENFOOTBALL_LEAGUES = [
+            { key: 'epl',        name: 'Premier League', file: 'en.1.json' },
+            { key: 'bundesliga', name: 'Bundesliga',     file: 'de.1.json' },
+            { key: 'laliga',     name: 'La Liga',        file: 'es.1.json' },
+            { key: 'seriea',     name: 'Serie A',        file: 'it.1.json' },
+            { key: 'ligue1',     name: 'Ligue 1',        file: 'fr.1.json' },
+            { key: 'eredivisie', name: 'Eredivisie',     file: 'nl.1.json' },
+            { key: 'scottish',   name: 'Scottish Prem.', file: 'sco.1.json' },
+          ];
+ 
+          const SEASONS = FULL_REFRESH
+            ? ['2022-23', '2023-24', '2024-25', '2025-26']
+            : ['2025-26']; // Kun indeværende sæson ved daglig kørsel
+ 
+          async function fetchOpenfootball(season, file) {
+            const url = `https://raw.githubusercontent.com/openfootball/football.json/master/${season}/${file}`;
+            try {
+              const res = await fetchUrl(url);
+              if (res.status !== 200) { console.log(`  HTTP ${res.status}`); return []; }
+              const data = JSON.parse(res.body);
+              const matches = [];
+              for (const round of (data.rounds || data.matches || [])) {
+                const games = round.matches || (round.date ? [round] : []);
+                for (const m of games) {
+                  if (!m.score?.ft) continue;
+                  const date = new Date(m.date || '');
+                  if (isNaN(date.getTime())) continue;
+                  matches.push({
+                    h: m.team1, a: m.team2,
+                    hg: m.score.ft[0], ag: m.score.ft[1],
+                    date
+                  });
                 }
               }
-              if (!date || isNaN(date.getTime())) continue;
-              out.push({ h, a, hg, ag, date });
-            }
-            return out;
+              return matches;
+            } catch(e) { console.log(`  Fejl: ${e.message}`); return []; }
           }
  
-          function seasonCode(y) { return String(y).slice(2) + String(y+1).slice(2); }
- 
-          // Store ligaer via football-data.co.uk (alle sæsoner inkl. 2025/26)
-          const FDCO_LEAGUES = {
-            epl:        { name: 'Premier League', code: 'E0'  },
-            laliga:     { name: 'La Liga',        code: 'SP1' },
-            bundesliga: { name: 'Bundesliga',     code: 'D1'  },
-            seriea:     { name: 'Serie A',        code: 'I1'  },
-            ligue1:     { name: 'Ligue 1',        code: 'F1'  },
-            eredivisie: { name: 'Eredivisie',     code: 'N1'  },
-            scottish:   { name: 'Scottish Prem.', code: 'SC0' },
-          };
- 
-          // Sæsoner: ved fuld refresh 3 sæsoner, ved daglig kørsel kun indeværende
-          const FDCO_SEASONS = FULL_REFRESH ? [2022, 2023, 2024, 2025] : [2025];
- 
-          // Superliga via API-Football (gratis, 100 req/dag)
-          // Gratis plan: 2022-2024. Daglig kørsel: kun 2024
-          const APISPORTS_SEASONS = FULL_REFRESH ? [2022, 2023, 2024] : [2024];
- 
-          // ── API-FOOTBALL (Superliga) ───────────────────────
+          // ── API-FOOTBALL (Superliga 2022-2024) ────────────
           async function fetchApiFootball(leagueId, season) {
             const url = `https://v3.football.api-sports.io/fixtures?league=${leagueId}&season=${season}&status=FT`;
             const res = await fetchUrl(url, { 'x-apisports-key': APISPORTS_KEY });
-            if (res.status === 429) { console.log('  Rate limit! Venter...'); await sleep(60000); return []; }
-            if (res.status !== 200) { console.log(`  HTTP ${res.status}`); return []; }
+            if (res.status === 429) { await sleep(60000); return []; }
+            if (res.status !== 200) return [];
             const data = JSON.parse(res.body);
-            if (data.errors && Object.keys(data.errors).length > 0) {
-              console.log(`  Fejl: ${JSON.stringify(data.errors)}`); return [];
-            }
+            if (data.errors && Object.keys(data.errors).length > 0) return [];
             return (data.response || []).map(f => ({
               h: f.teams?.home?.name, a: f.teams?.away?.name,
               hg: f.goals?.home, ag: f.goals?.away,
               date: new Date(f.fixture?.date)
             })).filter(m => m.h && m.a && m.hg !== null && m.ag !== null && !isNaN(m.date));
+          }
+ 
+          // ── SPORTMONKS (Superliga 2024-25, 2025-26) ───────
+          async function fetchSportmonksSuperliga() {
+            const matches = [];
+            try {
+              const leagueRes = await fetchUrl(
+                `https://api.sportmonks.com/v3/football/leagues/172?api_token=${SPORTMONKS_KEY}&include=seasons`
+              );
+              if (leagueRes.status !== 200) return matches;
+              const leagueData = JSON.parse(leagueRes.body);
+              const cutoff = new Date();
+              cutoff.setFullYear(cutoff.getFullYear() - (FULL_REFRESH ? 3 : 1));
+              const seasons = (leagueData.data?.seasons || [])
+                .filter(s => new Date(s.ending_at || s.starting_at) >= cutoff);
+              console.log(`  Sportmonks sæsoner: ${seasons.map(s=>s.name).join(', ')}`);
+ 
+              for (const season of seasons) {
+                let page = 1, lastPage = 1;
+                while (page <= lastPage) {
+                  const url = `https://api.sportmonks.com/v3/football/fixtures?api_token=${SPORTMONKS_KEY}&filters=fixtureLeagues:172;fixtureSeason:${season.id}&include=scores;participants&per_page=50&page=${page}`;
+                  const res = await fetchUrl(url);
+                  if (res.status !== 200) break;
+                  const data = JSON.parse(res.body);
+                  lastPage = data.pagination?.last_page || 1;
+                  for (const f of (data.data || [])) {
+                    if (!f.scores?.length || !f.participants?.length) continue;
+                    let hg = null, ag = null;
+                    for (const s of f.scores) {
+                      if (s.description === 'CURRENT') {
+                        if (s.score?.participant === 'home') hg = parseInt(s.score.goals);
+                        if (s.score?.participant === 'away') ag = parseInt(s.score.goals);
+                      }
+                    }
+                    if (hg === null || ag === null) continue;
+                    const home = f.participants.find(p => p.meta?.location === 'home');
+                    const away = f.participants.find(p => p.meta?.location === 'away');
+                    if (!home || !away) continue;
+                    const date = new Date(f.starting_at || '');
+                    if (isNaN(date.getTime()) || date > new Date()) continue;
+                    matches.push({ h: home.name, a: away.name, hg, ag, date });
+                  }
+                  page++;
+                  await sleep(300);
+                }
+                console.log(`  ${season.name}: ${matches.length} kampe akkumuleret`);
+              }
+            } catch(e) { console.log(`  Sportmonks fejl: ${e.message}`); }
+            return matches;
           }
  
           // ── DIXON-COLES ───────────────────────────────────
@@ -228,91 +266,43 @@ jobs:
             console.log('\nTraener model...');
             const modelResults = [];
  
-            // Store ligaer via football-data.co.uk
-            console.log('football-data.co.uk:');
-            for (const [key, cfg] of Object.entries(FDCO_LEAGUES)) {
+            // Store ligaer via openfootball (GitHub, gratis, alle sæsoner)
+            console.log('\nopenfootball.github.io:');
+            for (const cfg of OPENFOOTBALL_LEAGUES) {
               let all = [];
-              for (const yr of FDCO_SEASONS) {
-                try {
-                  const url = `https://www.football-data.co.uk/mmz4281/${seasonCode(yr)}/${cfg.code}.csv`;
-                  const res = await fetchUrl(url);
-                  console.log(`  ${cfg.name} ${yr}: HTTP ${res.status}, ${res.body.length} bytes`);
-                  if (res.status === 200 && res.body.length > 100) {
-                    all = all.concat(parseFDCO(res.body));
-                  } else if (res.status === 429) {
-                    console.log('  RATE LIMIT - stopper football-data.co.uk');
-                    break;
-                  }
-                } catch(e) { console.log(`  ${cfg.name} ${yr}: ${e.message}`); }
-                await sleep(1000); // God pause - undgå rate limiting
+              for (const season of SEASONS) {
+                const matches = await fetchOpenfootball(season, cfg.file);
+                console.log(`  ${cfg.name} ${season}: ${matches.length} kampe`);
+                all = all.concat(matches);
+                await sleep(200);
               }
               console.log(`  ${cfg.name} total: ${all.length} kampe`);
               if (all.length < 10) continue;
               const model = trainDC(all);
               if (!model) continue;
-              modelResults.push({ league_key:key, league_name:cfg.name, teams:model.teams,
+              modelResults.push({ league_key:cfg.key, league_name:cfg.name, teams:model.teams,
                 home_adv:model.homeAdv, avg_h:model.avgH, avg_a:model.avgA,
                 match_count:model.matchCount, updated_at:new Date().toISOString() });
             }
  
-            // Superliga via Sportmonks (gratis plan, alle sæsoner inkl. 2025/26)
-            // Fallback: API-Football (2022-2024)
+            // Superliga: Sportmonks (2024-25, 2025-26) + API-Football (2022-2024)
             console.log('\nSuperliga:');
             let superMatches = [];
  
-            // Sportmonks: hent sæsoner for Superliga (league id: 172)
-            try {
-              const smLeague = await fetchUrl(
-                `https://api.sportmonks.com/v3/football/leagues/172?api_token=${SPORTMONKS_KEY}&include=seasons`
-              );
-              if (smLeague.status === 200) {
-                const leagueData = JSON.parse(smLeague.body);
-                const seasons = leagueData.data?.seasons || [];
-                const cutoff = new Date();
-                cutoff.setFullYear(cutoff.getFullYear() - 3);
-                const relevantSeasons = seasons.filter(s => new Date(s.ending_at || s.starting_at) >= cutoff);
-                console.log(`  Sportmonks sæsoner: ${relevantSeasons.map(s=>s.name).join(', ')}`);
+            // Sportmonks for nyeste sæsoner
+            const smMatches = await fetchSportmonksSuperliga();
+            console.log(`  Sportmonks: ${smMatches.length} kampe`);
+            superMatches = superMatches.concat(smMatches);
  
-                for (const season of relevantSeasons) {
-                  let page = 1, lastPage = 1;
-                  while (page <= lastPage) {
-                    const url = `https://api.sportmonks.com/v3/football/fixtures?api_token=${SPORTMONKS_KEY}&filters=fixtureLeagues:172;fixtureSeason:${season.id}&include=scores;participants&per_page=50&page=${page}`;
-                    const res = await fetchUrl(url);
-                    if (res.status !== 200) break;
-                    const data = JSON.parse(res.body);
-                    lastPage = data.pagination?.last_page || 1;
-                    for (const f of (data.data || [])) {
-                      if (!f.scores?.length || !f.participants?.length) continue;
-                      let hg = null, ag = null;
-                      for (const s of f.scores) {
-                        if (s.description === 'CURRENT') {
-                          if (s.score?.participant === 'home') hg = parseInt(s.score.goals);
-                          if (s.score?.participant === 'away') ag = parseInt(s.score.goals);
-                        }
-                      }
-                      if (hg === null || ag === null) continue;
-                      const home = f.participants.find(p => p.meta?.location === 'home');
-                      const away = f.participants.find(p => p.meta?.location === 'away');
-                      if (!home || !away) continue;
-                      const date = new Date(f.starting_at || '');
-                      if (isNaN(date.getTime()) || date > new Date()) continue;
-                      superMatches.push({ h: home.name, a: away.name, hg, ag, date });
-                    }
-                    page++;
-                    await sleep(300);
-                  }
-                  console.log(`  ${season.name}: ${superMatches.length} kampe akkumuleret`);
-                }
-              }
-            } catch(e) { console.log(`  Sportmonks fejl: ${e.message}`); }
- 
-            // Fallback til API-Football hvis Sportmonks ikke gav data
-            if (superMatches.length < 10) {
-              console.log('  Fallback til API-Football (2022-2024)...');
-              for (const season of APISPORTS_SEASONS) {
+            // API-Football for historiske sæsoner (2022-2024) ved fuld refresh
+            if (FULL_REFRESH) {
+              for (const season of [2022, 2023, 2024]) {
                 const m = await fetchApiFootball(119, season);
                 console.log(`  API-Football ${season}: ${m.length} kampe`);
-                superMatches = superMatches.concat(m);
+                // Undgå dubletter - kun tilføj kampe der ikke allerede er i smMatches
+                const existing = new Set(superMatches.map(x => `${x.h}-${x.a}-${x.date.toISOString().slice(0,10)}`));
+                const newMatches = m.filter(x => !existing.has(`${x.h}-${x.a}-${x.date.toISOString().slice(0,10)}`));
+                superMatches = superMatches.concat(newMatches);
                 await sleep(1000);
               }
             }
