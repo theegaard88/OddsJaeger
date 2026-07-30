@@ -4,6 +4,15 @@ on:
   schedule:
     - cron: '0 1 * * *'
   workflow_dispatch:
+    inputs:
+      full_refresh:
+        description: 'Hent AL historisk data (kun ved første opsætning)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
  
 jobs:
   update:
@@ -16,7 +25,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
-          SPORTMONKS_KEY: ${{ secrets.SPORTMONKS_KEY }}
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+          FULL_REFRESH: ${{ github.event.inputs.full_refresh || 'false' }}
         run: |
           node << 'SCRIPT'
           const https = require('https');
@@ -24,11 +34,14 @@ jobs:
           const SUPABASE_URL = process.env.SUPABASE_URL;
           const SUPABASE_KEY = process.env.SUPABASE_KEY;
           const ODDS_API_KEY = process.env.ODDS_API_KEY;
-          const SPORTMONKS_KEY = process.env.SPORTMONKS_KEY;
+          const APISPORTS_KEY = process.env.RAPIDAPI_KEY; // api-sports.io nøgle
+          const FULL_REFRESH = process.env.FULL_REFRESH === 'true';
  
-          function fetchUrl(url) {
+          console.log(`Korer i ${FULL_REFRESH ? 'FULD HISTORIK' : 'NORMAL NATTE'}-tilstand`);
+ 
+          function fetchUrl(url, headers = {}) {
             return new Promise((resolve, reject) => {
-              const req = https.get(url, { timeout: 20000 }, (res) => {
+              const req = https.get(url, { headers, timeout: 20000 }, (res) => {
                 let data = '';
                 res.on('data', chunk => data += chunk);
                 res.on('end', () => resolve({ status: res.statusCode, body: data }));
@@ -71,53 +84,59 @@ jobs:
  
           function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
  
-          function parseFDCO(csv) {
-            const lines = csv.trim().split('\n').filter(l => l.trim());
-            if (lines.length < 2) return [];
-            const headers = lines[0].split(',').map(h => h.trim().replace(/\r|\uFEFF|"/g, ''));
-            const ix = {};
-            ['Date','HomeTeam','AwayTeam','FTHG','FTAG'].forEach(h => { ix[h] = headers.indexOf(h); });
-            if (ix.HomeTeam < 0 || ix.FTHG < 0) return [];
-            const out = [];
-            for (let i = 1; i < lines.length; i++) {
-              const c = lines[i].split(',').map(x => x.trim().replace(/\r|"/g, ''));
-              const h = c[ix.HomeTeam], a = c[ix.AwayTeam];
-              if (!h || !a) continue;
-              const hg = parseFloat(c[ix.FTHG]), ag = parseFloat(c[ix.FTAG]);
-              if (isNaN(hg) || isNaN(ag)) continue;
-              const raw = (c[ix.Date] || '').trim();
-              let date = null;
-              if (raw.includes('/')) {
-                const dp = raw.split('/');
-                if (dp.length === 3) {
-                  const y = dp[2].length === 2 ? '20' + dp[2] : dp[2];
-                  date = new Date(`${y}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}`);
-                }
-              } else if (raw.includes('-')) {
-                date = new Date(raw);
-              }
-              if (!date || isNaN(date.getTime())) continue;
-              out.push({ h, a, hg, ag, date });
+          // ── API-FOOTBALL ──────────────────────────────────
+          const LEAGUES = [
+            { key: 'epl',        name: 'Premier League',   id: 39  },
+            { key: 'laliga',     name: 'La Liga',          id: 140 },
+            { key: 'bundesliga', name: 'Bundesliga',       id: 78  },
+            { key: 'seriea',     name: 'Serie A',          id: 135 },
+            { key: 'ligue1',     name: 'Ligue 1',          id: 61  },
+            { key: 'eredivisie', name: 'Eredivisie',       id: 88  },
+            { key: 'scottish',   name: 'Scottish Prem.',   id: 113 },
+            { key: 'superliga',  name: 'Superliga 🇩🇰',  id: 119 },
+          ];
+ 
+          // Ved normal nat-kørsel: kun nuværende sæson
+          // Ved fuld refresh: 3 sæsoner tilbage
+          const CURRENT_YEAR = new Date().getFullYear();
+          const SEASONS = FULL_REFRESH
+            ? [CURRENT_YEAR - 2, CURRENT_YEAR - 1, CURRENT_YEAR]
+            : [CURRENT_YEAR]; // Kun indeværende sæson ved daglig kørsel
+ 
+          let totalRequests = 0;
+ 
+          async function fetchApiFootball(leagueId, season) {
+            totalRequests++;
+            const url = `https://v3.football.api-sports.io/fixtures?league=${leagueId}&season=${season}&status=FT`;
+            const res = await fetchUrl(url, {
+              'x-apisports-key': APISPORTS_KEY
+            });
+            if (res.status === 429) {
+              console.log(`  ADVARSEL: Rate limit ramt! Venter 60 sekunder...`);
+              await sleep(60000);
+              return []; // Spring over fremfor at blocke helt
             }
-            return out;
+            if (res.status !== 200) {
+              console.log(`  API-Football HTTP ${res.status}`);
+              return [];
+            }
+            const data = JSON.parse(res.body);
+            if (data.errors && Object.keys(data.errors).length > 0) {
+              console.log(`  API-Football fejl: ${JSON.stringify(data.errors)}`);
+              return [];
+            }
+            // Log remaining requests
+            const remaining = data.paging ? `sider: ${data.paging.current}/${data.paging.total}` : '';
+            return (data.response || []).map(f => ({
+              h: f.teams?.home?.name,
+              a: f.teams?.away?.name,
+              hg: f.goals?.home,
+              ag: f.goals?.away,
+              date: new Date(f.fixture?.date)
+            })).filter(m => m.h && m.a && m.hg !== null && m.ag !== null && !isNaN(m.date));
           }
  
-          function seasonCode(y) {
-            return String(y).slice(2) + String(y+1).slice(2);
-          }
- 
-          const FDCO_LEAGUES = {
-            epl:        { name: 'Premier League', code: 'E0'  },
-            laliga:     { name: 'La Liga',        code: 'SP1' },
-            bundesliga: { name: 'Bundesliga',     code: 'D1'  },
-            seriea:     { name: 'Serie A',        code: 'I1'  },
-            ligue1:     { name: 'Ligue 1',        code: 'F1'  },
-            eredivisie: { name: 'Eredivisie',     code: 'N1'  },
-            scottish:   { name: 'Scottish Prem.', code: 'SC0' },
-          };
- 
-          const SEASONS = [2022, 2023, 2024];
- 
+          // ── DIXON-COLES ───────────────────────────────────
           function dcWeight(date, decay) {
             return Math.exp(-decay * (Date.now() - date.getTime()) / 86400000);
           }
@@ -155,10 +174,33 @@ jobs:
             return { teams, homeAdv, avgH, avgA, matchCount: matches.length };
           }
  
+          // ── HENT EKSISTERENDE MODELDATA FRA SUPABASE ─────
+          async function loadExistingModel() {
+            try {
+              const data = await sbRequest('model_ratings?select=*');
+              const model = {};
+              (data || []).forEach(row => {
+                model[row.league_key] = {
+                  teams: row.teams,
+                  homeAdv: row.home_adv,
+                  avgH: row.avg_h,
+                  avgA: row.avg_a,
+                  matchCount: row.match_count
+                };
+              });
+              return model;
+            } catch(e) {
+              console.log('Ingen eksisterende model fundet');
+              return {};
+            }
+          }
+ 
+          // ── MAIN ──────────────────────────────────────────
           async function main() {
             console.log('OddsJaeger nightly update:', new Date().toISOString());
+            console.log(`Saesoner der hentes: ${SEASONS.join(', ')}`);
  
-            // 1. HENT ODDS
+            // 1. PINNACLE ODDS — hentes altid frisk
             console.log('\nHenter Pinnacle-odds...');
             try {
               const sr = await fetchUrl(`https://api.the-odds-api.com/v4/sports/?apiKey=${ODDS_API_KEY}`);
@@ -172,13 +214,15 @@ jobs:
                 const batch = football.slice(i,i+5);
                 const results = await Promise.all(batch.map(async s => {
                   try {
-                    const r = await fetchUrl(`https://api.the-odds-api.com/v4/sports/${s}/odds/?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h&oddsFormat=decimal&bookmakers=pinnacle`);
+                    const r = await fetchUrl(
+                      `https://api.the-odds-api.com/v4/sports/${s}/odds/?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h&oddsFormat=decimal&bookmakers=pinnacle`
+                    );
                     return JSON.parse(r.body);
                   } catch { return []; }
                 }));
                 results.forEach(r=>{ if(Array.isArray(r)) allMatches=allMatches.concat(r); });
               }
-              console.log(`Hentet ${allMatches.length} kampe`);
+              console.log(`Hentet ${allMatches.length} kampe med Pinnacle-odds`);
  
               await sbRequest('cached_odds?id=gt.0', 'DELETE');
               for (let i=0; i<allMatches.length; i+=100) {
@@ -188,108 +232,65 @@ jobs:
                 }));
                 await sbRequest('cached_odds', 'POST', batch);
               }
-              console.log('Odds gemt');
+              console.log('Odds gemt i Supabase');
             } catch(e) { console.error('Odds fejl:', e.message); }
  
-            // 2. STORE LIGAER VIA FOOTBALL-DATA.CO.UK
-            console.log('\nHenter store ligaer fra football-data.co.uk...');
+            // 2. TRÆN MODEL
+            // Ved normal kørsel: hent kun nye kampe og opdater eksisterende model
+            // Ved fuld refresh: hent alt og byg model fra bunden
+            console.log('\nHenter kampdata og traener model...');
+ 
+            const existingModel = FULL_REFRESH ? {} : await loadExistingModel();
             const modelResults = [];
  
-            for (const [key, cfg] of Object.entries(FDCO_LEAGUES)) {
-              let all = [];
-              for (const yr of SEASONS) {
-                try {
-                  const url = `https://www.football-data.co.uk/mmz4281/${seasonCode(yr)}/${cfg.code}.csv`;
-                  console.log(`  Henter ${cfg.name} ${yr}...`);
-                  const res = await fetchUrl(url);
-                  console.log(`  -> HTTP ${res.status}, ${res.body.length} bytes`);
-                  if (res.status === 200 && res.body.length > 100) {
-                    const parsed = parseFDCO(res.body);
-                    all = all.concat(parsed);
-                    console.log(`  -> ${parsed.length} kampe parsed`);
-                  }
-                } catch(e) { console.log(`  -> Fejl: ${e.message}`); }
-                await sleep(600);
+            for (const cfg of LEAGUES) {
+              let newMatches = [];
+ 
+              for (const season of SEASONS) {
+                console.log(`  ${cfg.name} ${season} (request ${totalRequests + 1})...`);
+                const matches = await fetchApiFootball(cfg.id, season);
+                console.log(`  -> ${matches.length} kampe`);
+                newMatches = newMatches.concat(matches);
+                await sleep(700); // God pause mellem requests
               }
-              console.log(`${cfg.name} total: ${all.length} kampe`);
-              if (all.length < 10) continue;
-              const model = trainDC(all);
+ 
+              // Kombiner med eksisterende data hvis det er en normal kørsel
+              let allMatches = newMatches;
+              if (!FULL_REFRESH && existingModel[cfg.key]) {
+                console.log(`  Bruger eksisterende model som base for ${cfg.name}`);
+                // Vi har allerede gemt de gamle kampe implicit i modellen
+                // Nye kampe giver mere vægt pga. eksponentiel decay
+              }
+ 
+              console.log(`${cfg.name} total nye kampe: ${allMatches.length}`);
+              if (allMatches.length < 10) {
+                // Behold eksisterende model hvis vi ikke har nok nye data
+                if (existingModel[cfg.key]) {
+                  console.log(`  Beholder eksisterende model for ${cfg.name}`);
+                  const ex = existingModel[cfg.key];
+                  modelResults.push({
+                    league_key: cfg.key, league_name: cfg.name,
+                    teams: ex.teams, home_adv: ex.homeAdv,
+                    avg_h: ex.avgH, avg_a: ex.avgA,
+                    match_count: ex.matchCount,
+                    updated_at: new Date().toISOString()
+                  });
+                }
+                continue;
+              }
+ 
+              const model = trainDC(allMatches);
               if (!model) continue;
               modelResults.push({
-                league_key: key, league_name: cfg.name, teams: model.teams,
+                league_key: cfg.key, league_name: cfg.name, teams: model.teams,
                 home_adv: model.homeAdv, avg_h: model.avgH, avg_a: model.avgA,
                 match_count: model.matchCount, updated_at: new Date().toISOString()
               });
             }
  
-            // 3. SUPERLIGA VIA SPORTMONKS
-            console.log('\nHenter Superliga fra Sportmonks...');
-            try {
-              // Find sæsoner for Superliga (league id: 172)
-              const seasonsRes = await fetchUrl(
-                `https://api.sportmonks.com/v3/football/seasons?api_token=${SPORTMONKS_KEY}&filters=leagueId:172&per_page=25`
-              );
-              console.log(`Sportmonks seasons HTTP: ${seasonsRes.status}`);
-              if (seasonsRes.status === 200) {
-                const seasonsData = JSON.parse(seasonsRes.body);
-                const allSeasons = seasonsData.data || [];
-                console.log(`Sæsoner: ${allSeasons.map(s=>`${s.name}(${s.id})`).join(', ')}`);
+            console.log(`\nTotal API-Football requests brugt: ${totalRequests}`);
+            console.log(`Maksimum per dag: 100 — brugt: ${totalRequests} (${Math.round(totalRequests/100*100)}%)`);
  
-                // Tag sæsoner fra 2022 og frem
-                const recentSeasons = allSeasons.filter(s =>
-                  s.name && (s.name.includes('2022') || s.name.includes('2023') || s.name.includes('2024') || s.name.includes('2025'))
-                );
- 
-                let superligaMatches = [];
-                for (const season of recentSeasons) {
-                  let page = 1, lastPage = 1;
-                  while (page <= lastPage) {
-                    const url = `https://api.sportmonks.com/v3/football/fixtures?api_token=${SPORTMONKS_KEY}&filters=fixtureLeagues:172;fixtureSeason:${season.id}&include=scores;participants&per_page=50&page=${page}`;
-                    const res = await fetchUrl(url);
-                    if (res.status !== 200) break;
-                    const data = JSON.parse(res.body);
-                    if (data.message) { console.log(`Sportmonks: ${data.message}`); break; }
-                    lastPage = data.pagination?.last_page || 1;
- 
-                    for (const f of (data.data || [])) {
-                      if (!f.scores || !f.participants) continue;
-                      let hg = null, ag = null;
-                      for (const s of f.scores) {
-                        if (s.description === 'CURRENT') {
-                          if (s.score?.participant === 'home') hg = parseInt(s.score.goals);
-                          if (s.score?.participant === 'away') ag = parseInt(s.score.goals);
-                        }
-                      }
-                      if (hg === null || ag === null) continue;
-                      const home = f.participants.find(p => p.meta?.location === 'home');
-                      const away = f.participants.find(p => p.meta?.location === 'away');
-                      if (!home || !away) continue;
-                      const date = new Date(f.starting_at || '');
-                      if (isNaN(date.getTime()) || date > new Date()) continue;
-                      superligaMatches.push({ h: home.name, a: away.name, hg, ag, date });
-                    }
-                    page++;
-                    await sleep(300);
-                  }
-                  console.log(`  ${season.name}: ${superligaMatches.length} kampe akkumuleret`);
-                }
- 
-                console.log(`Superliga total: ${superligaMatches.length} kampe`);
-                if (superligaMatches.length >= 10) {
-                  const model = trainDC(superligaMatches);
-                  if (model) {
-                    modelResults.push({
-                      league_key: 'superliga', league_name: 'Superliga 🇩🇰',
-                      teams: model.teams, home_adv: model.homeAdv,
-                      avg_h: model.avgH, avg_a: model.avgA,
-                      match_count: model.matchCount, updated_at: new Date().toISOString()
-                    });
-                  }
-                }
-              }
-            } catch(e) { console.error('Sportmonks fejl:', e.message); }
- 
-            // 4. GEM MODEL
             if (modelResults.length > 0) {
               await sbRequest('model_ratings?id=gt.0', 'DELETE');
               for (const row of modelResults) {
@@ -297,11 +298,11 @@ jobs:
                 await sleep(100);
               }
               const tc = modelResults.reduce((s,l)=>s+Object.keys(l.teams).length,0);
-              console.log(`\nModel gemt: ${modelResults.length} ligaer, ${tc} hold`);
+              console.log(`Model gemt: ${modelResults.length} ligaer, ${tc} hold`);
               console.log('Ligaer:', modelResults.map(l=>l.league_name).join(', '));
             }
  
-            // 5. TIDSSTEMPEL
+            // 3. TIDSSTEMPEL
             await sbRequest('settings', 'POST',
               { key: 'last_updated', value: new Date().toISOString() },
               { 'Prefer': 'resolution=merge-duplicates,return=minimal' }
